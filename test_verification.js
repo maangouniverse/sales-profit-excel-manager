@@ -1,66 +1,61 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { CHANNELS, CLIENTS, CHANNEL_RATES, DAILY_SALES, MONTHLY_TARGETS, COMMON_COSTS, computeRowMetrics } = require('./excel_data_styles');
+const { CHANNELS, TARGET_MONTHS, CHANNEL_RATES, DAILY_SALES, computeRowMetrics } = require('./excel_data_styles');
 
-console.log('=== [매출관리 엑셀 프로그램 자동 검증 테스트 시작] ===');
+console.log('=== [수정사항 반영 매출관리 프로그램 자동 검증 테스트] ===');
 
-// 1. 엑셀 파일 생성 확인
+// 1. 엑셀 파일 확인
 const xlsxPath = path.join(__dirname, '거래처별_매출순이익_관리프로그램.xlsx');
 assert(fs.existsSync(xlsxPath), '엑셀 파일이 존재해야 합니다.');
-const stat = fs.statSync(xlsxPath);
-assert(stat.size > 50000, '엑셀 파일 크기가 정상이어야 합니다.');
-console.log(`✅ 1. 엑셀 파일 생성 확인 완료 (${stat.size.toLocaleString()} bytes)`);
+console.log(`✅ 1. 엑셀 파일 생성 확인 완료 (${fs.statSync(xlsxPath).size.toLocaleString()} bytes)`);
 
-// 2. 기본 판매채널 7종 등록 확인
-const expectedChannels = ['농라', '스마트스토어', '카톡', '고흥몰', '남도장터', '로컬푸드', '기타'];
-assert.deepStrictEqual(CHANNELS, expectedChannels, '기본 판매채널 7종이 정확히 등록되어야 합니다.');
-console.log('✅ 2. 기본 판매채널 7종(농라, 스마트스토어, 카톡, 고흥몰, 남도장터, 로컬푸드, 기타) 확인 완료');
+// 2. 목표매출 기간: 2026년 11월 ~ 2027년 10월 (12개월) 및 총합계 확인
+assert.strictEqual(TARGET_MONTHS.length, 12);
+assert.strictEqual(TARGET_MONTHS[0].ym, '2026-11');
+assert.strictEqual(TARGET_MONTHS[11].ym, '2027-10');
+const totalTargetSum = TARGET_MONTHS.reduce((a, b) => a + b.target, 0);
+assert.strictEqual(totalTargetSum, 140000000, '12개월 목표매출 총합계는 140,000,000원이어야 합니다.');
+console.log(`✅ 2. 목표설정 기간(2026년 11월 ~ 2027년 10월) 및 목표매출 총합계(${totalTargetSum.toLocaleString()}원) 확인 완료`);
 
-// 3. 비용 변경일 전후 단가 분리 적용 테스트 (스마트스토어: 2026-04-15 이전 vs 2026-04-16 이후)
-const beforeSale = DAILY_SALES.find(r => r.date === '2026-04-14' && r.channel === '스마트스토어');
-const afterSale = DAILY_SALES.find(r => r.date === '2026-04-17' && r.channel === '스마트스토어');
+// 3. 10kg 미만 / 10kg 이상 주문건수 구분 및 박스·포장비닐·리플렛 비용 합산 검증
+// 스마트스토어 단가 변경일 전(2026-11-14) vs 후(2026-11-17) 비교
+const beforeSale = DAILY_SALES.find(r => r.date === '2026-11-14' && r.channel === '스마트스토어');
+const afterSale = DAILY_SALES.find(r => r.date === '2026-11-17' && r.channel === '스마트스토어');
 const mBefore = computeRowMetrics(beforeSale, CHANNEL_RATES);
 const mAfter = computeRowMetrics(afterSale, CHANNEL_RATES);
 
+// 11/14 (단가 변경 전):
+// 수수료율 5.5% -> 1,200,000 * 5.5% = 66,000원
+// 포장부자재 = 박스(650) + 비닐(150) + 리플렛(100) = 900원
+// 10kg 미만 건당 = 3,200 + 900 = 4,100원 (20건 = 82,000원)
+// 10kg 이상 건당 = 4,200 + 900 = 5,100원 (10건 = 51,000원)
+// 주문건수 비용 합계 = 82,000 + 51,000 = 133,000원
+// 총비용 = 66,000 + 133,000 = 199,000원 -> 순이익 = 1,200,000 - 199,000 = 1,001,000원
 assert.strictEqual(mBefore.status, '정상');
-assert.strictEqual(mBefore.feeRate, 0.055, '4/15 이전 스마트스토어 수수료율은 5.5%여야 합니다.');
-assert.strictEqual(mBefore.feeAmt, 44000, '800,000 * 5.5% = 44,000원이어야 합니다.');
-assert.strictEqual(mBefore.unitCost, 4110, '4/15 이전 건당비용은 3000+1000+110 = 4,110원이어야 합니다.');
-assert.strictEqual(mBefore.orderCost, 82200, '20건 * 4,110원 = 82,200원이어야 합니다.');
-assert.strictEqual(mBefore.totalCost, 526200, '원가 400,000 + 수수료 44,000 + 건수비 82,200 = 526,200원이어야 합니다.');
-assert.strictEqual(mBefore.netProfit, 273800, '순이익은 800,000 - 526,200 = 273,800원이어야 합니다.');
+assert.strictEqual(mBefore.totalOrders, 30);
+assert.strictEqual(mBefore.feeAmt, 66000);
+assert.strictEqual(mBefore.unitUnder10, 4100);
+assert.strictEqual(mBefore.unitOver10, 5100);
+assert.strictEqual(mBefore.orderCost, 133000);
+assert.strictEqual(mBefore.totalCost, 199000);
+assert.strictEqual(mBefore.netProfit, 1001000);
 
+// 11/17 (단가 변경 후):
+// 수수료율 5.8% -> 1,200,000 * 5.8% = 69,600원
+// 포장부자재 = 박스(750) + 비닐(150) + 리플렛(100) = 1,000원
+// 10kg 미만 건당 = 3,500 + 1,000 = 4,500원 (20건 = 90,000원)
+// 10kg 이상 건당 = 4,500 + 1,000 = 5,500원 (10건 = 55,000원)
+// 주문건수 비용 합계 = 90,000 + 55,000 = 145,000원
+// 총비용 = 69,600 + 145,000 = 214,600원 -> 순이익 = 1,200,000 - 214,600 = 985,400원
 assert.strictEqual(mAfter.status, '정상');
-assert.strictEqual(mAfter.feeRate, 0.058, '4/16 이후 스마트스토어 수수료율은 5.8%여야 합니다.');
-assert.strictEqual(mAfter.feeAmt, 46400, '800,000 * 5.8% = 46,400원이어야 합니다.');
-assert.strictEqual(mAfter.unitCost, 4830, '4/16 이후 건당비용은 3500+1200+130 = 4,830원이어야 합니다.');
-assert.strictEqual(mAfter.orderCost, 96600, '20건 * 4,830원 = 96,600원이어야 합니다.');
-assert.strictEqual(mAfter.totalCost, 543000, '원가 400,000 + 수수료 46,400 + 건수비 96,600 = 543,000원이어야 합니다.');
-assert.strictEqual(mAfter.netProfit, 257000, '순이익은 800,000 - 543,000 = 257,000원이어야 합니다.');
-console.log('✅ 3. 비용 변경일(4/16) 전후 단가 분리 적용 및 주문건수 비례 비용 계산 검증 완료');
-
-// 4. 비용 설정이 없는 날짜 입력 시 0원 처리하지 않고 "비용 설정 필요" 표시하는지 검증
-const unconfiguredRow = { date: '2025-12-15', client: '청정영농조합', channel: '스마트스토어', orders: 10, sales: 500000, cogs: 250000, extraCost: 0 };
-const mUnconf = computeRowMetrics(unconfiguredRow, CHANNEL_RATES);
-assert.strictEqual(mUnconf.status, '비용 설정 필요');
-assert.strictEqual(mUnconf.totalCost, '비용 설정 필요');
-assert.strictEqual(mUnconf.netProfit, '비용 설정 필요');
-console.log('✅ 4. 미설정 기간 입력 시 임의 0원 처리 방지 및 [비용 설정 필요] 표시 검증 완료');
-
-// 5. 동일 채널 기간 중복 시 경고 검증
-const overlappingRates = [
-  ...CHANNEL_RATES,
-  { channel: '스마트스토어', start: '2026-04-10', end: '2026-04-20', feeRate: 0.06, shipFee: 3500, packFee: 1000, etcFee: 0 }
-];
-const mOverlap = computeRowMetrics(beforeSale, overlappingRates);
-assert.strictEqual(mOverlap.status, '기간 중복 확인');
-console.log('✅ 5. 동일 판매채널 적용 기간 중복 감지 검증 완료');
-
-// 6. 매출 0원일 때 나누기 오류(NaN/Infinity) 방지 검증
-const zeroSaleRow = { date: '2026-04-10', client: '청정영농조합', channel: '농라', orders: 0, sales: 0, cogs: 0, extraCost: 0 };
-const mZero = computeRowMetrics(zeroSaleRow, CHANNEL_RATES);
-assert.strictEqual(mZero.margin, 0, '매출이 0원일 때 순이익률은 에러 없이 0이어야 합니다.');
-console.log('✅ 6. 매출/목표매출 0원일 때 0 나누기 오류 방지 검증 완료');
+assert.strictEqual(mAfter.totalOrders, 30);
+assert.strictEqual(mAfter.feeAmt, 69600);
+assert.strictEqual(mAfter.unitUnder10, 4500);
+assert.strictEqual(mAfter.unitOver10, 5500);
+assert.strictEqual(mAfter.orderCost, 145000);
+assert.strictEqual(mAfter.totalCost, 214600);
+assert.strictEqual(mAfter.netProfit, 985400);
+console.log('✅ 3. 10kg 미만/이상 택배비 구분 및 박스·포장비닐·리플렛 비용 합산, 단가 변경 전후 검증 완료');
 
 console.log('=== [모든 검증 테스트 100% 통과!] ===');

@@ -137,7 +137,7 @@ function buildDoughnutChartXml({ title, categoriesFormula, categoriesCache, seri
     valPts += `<c:pt idx="${i}"><c:v>${v}</c:v></c:pt>`;
   });
 
-  const sliceColors = ['2563EB', '10B981', 'F59E0B', '6366F1', 'EC4899', '14B8A6', '64748B'];
+  const sliceColors = ['92ADD0', 'C1D4F5', '112240', 'E6CC55', '5C7CFA', 'C5D185', '8E9AAF'];
   let dPtXml = '';
   categoriesCache.forEach((_, i) => {
     const clr = sliceColors[i % sliceColors.length];
