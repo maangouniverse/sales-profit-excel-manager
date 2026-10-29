@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>거래처별·채널별 매출 및 순이익 관리 프로그램</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- 상단 헤더 -->
+  <header class="top-header">
+    <div class="header-inner">
+      <div class="brand-area">
+        <span class="brand-badge">EXCEL &amp; WEB 통합 솔루션</span>
+        <h1>거래처별·판매채널별 매출·순이익 관리 프로그램</h1>
+        <p>날짜별 판매채널·주문건수·매출액만 입력하면 기간별 수수료와 건당 물류비, 순이익이 자동 계산됩니다.</p>
+      </div>
+      <div class="header-actions">
+        <button id="btnResetSample" class="btn btn-outline" title="예시 데이터로 초기화">🔄 예시 데이터 복원</button>
+        <a href="./거래처별_매출순이익_관리프로그램.xlsx" download="거래처별_매출순이익_관리프로그램.xlsx" class="btn btn-primary">
+          📥 엑셀 프로그램(.xlsx) 다운로드
+        </a>
+      </div>
+    </div>
+
+    <!-- 시트 탭 네비게이션 (엑셀 6개 시트와 1:1 대응) -->
+    <nav class="sheet-tabs" role="tablist">
+      <button class="tab-btn active" data-tab="tab-dashboard">📊 1. 매출·손익 대시보드</button>
+      <button class="tab-btn" data-tab="tab-daily">📝 2. 일일 매출 입력</button>
+      <button class="tab-btn" data-tab="tab-rates">⚙️ 3. 판매채널·기간별 비용 설정</button>
+      <button class="tab-btn" data-tab="tab-analysis">📈 4. 거래처·채널별 손익 분석</button>
+      <button class="tab-btn" data-tab="tab-targets">🎯 5. 목표매출·공통비용 설정</button>
+      <button class="tab-btn" data-tab="tab-guide">📖 6. 사용 설명서·기준 관리</button>
+    </nav>
+  </header>
+
+  <main class="main-container">
+    <!-- 글로벌 기간 필터 & 데이터 무결성 경고 바 -->
+    <section class="filter-bar card">
+      <div class="filter-group">
+        <div class="filter-item">
+          <label for="filterMode">조회 방식</label>
+          <select id="filterMode" class="input-select yellow-input">
+            <option value="month" selected>연도·월 선택 조회</option>
+            <option value="custom">시작일·종료일 직접 선택</option>
+          </select>
+        </div>
+        <div class="filter-item" id="yearMonthGroup">
+          <label for="filterYear">조회 연도 / 월</label>
+          <div class="inline-inputs">
+            <select id="filterYear" class="input-select yellow-input">
+              <option value="2025">2025년</option>
+              <option value="2026" selected>2026년</option>
+              <option value="2027">2027년</option>
+            </select>
+            <select id="filterMonth" class="input-select yellow-input">
+              <option value="all">전체 (1~12월 연간)</option>
+              <option value="1">1월</option>
+              <option value="2">2월</option>
+              <option value="3">3월</option>
+              <option value="4" selected>4월 (집중 예시)</option>
+              <option value="5">5월</option>
+              <option value="6">6월</option>
+              <option value="7">7월</option>
+              <option value="8">8월</option>
+              <option value="9">9월</option>
+              <option value="10">10월</option>
+              <option value="11">11월</option>
+              <option value="12">12월</option>
+            </select>
+          </div>
+        </div>
+        <div class="filter-item" id="customDateGroup" style="display:none;">
+          <label>조회 시작일 ~ 종료일</label>
+          <div class="inline-inputs">
+            <input type="date" id="filterStartDate" class="input-field yellow-input" value="2026-04-01" />
+            <span>~</span>
+            <input type="date" id="filterEndDate" class="input-field yellow-input" value="2026-04-30" />
+          </div>
+        </div>
+        <div class="filter-item">
+          <label>적용 조회 기간 (자동)</label>
+          <div id="appliedPeriodBadge" class="calc-badge">2026-04-01 ~ 2026-04-30 (30일간)</div>
+        </div>
+      </div>
+
+      <!-- 비용 설정 누락 / 기간 중복 실시간 상태 알림 -->
+      <div id="healthStatusBanner" class="health-banner ok">
+        <span id="healthStatusIcon">✅</span>
+        <div class="health-text">
+          <strong id="healthStatusTitle">모든 비용 설정 및 적용 기간 정상</strong>
+          <span id="healthStatusDesc">비용 설정 누락 0건 · 채널 기간 중복 0건</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 시트 1: 매출·손익 대시보드 -->
+    <!-- ================================================================== -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <!-- KPI 요약 카드 (1단: 핵심 실적) -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-label">🎯 목표매출 (일할/월할 자동)</span>
+          <strong class="kpi-value" id="kpiTargetSales">0원</strong>
+          <span class="kpi-sub" id="kpiTargetSub">조회기간 비례 목표액</span>
+        </div>
+        <div class="kpi-card accent-blue">
+          <span class="kpi-label">💰 실제매출 (할인반영 실매출)</span>
+          <strong class="kpi-value" id="kpiActualSales">0원</strong>
+          <span class="kpi-sub" id="kpiOrderCountSub">총 주문 0건</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">📈 목표 달성률</span>
+          <strong class="kpi-value" id="kpiAchieveRate">0.0%</strong>
+          <div class="progress-bar"><div id="kpiAchieveBar" class="progress-fill" style="width:0%"></div></div>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">📦 총 주문건수</span>
+          <strong class="kpi-value" id="kpiOrders">0건</strong>
+          <span class="kpi-sub" id="kpiAvgOrderVal">건당 평균 매출 0원</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">🧾 총비용 (공통비용 제외)</span>
+          <strong class="kpi-value" id="kpiTotalVarCost">0원</strong>
+          <span class="kpi-sub" id="kpiCostBreakdownSub">원가+수수료+건당비용+추가비용</span>
+        </div>
+        <div class="kpi-card accent-green" id="kpiNetProfitCard">
+          <span class="kpi-label">💎 순이익 (공통비용 반영 전)</span>
+          <strong class="kpi-value" id="kpiNetProfit">0원</strong>
+          <span class="kpi-sub" id="kpiNetMargin">순이익률 0.0%</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">🏢 기간 공통비용 (광고·임대 등)</span>
+          <strong class="kpi-value" id="kpiCommonCost">0원</strong>
+          <span class="kpi-sub" id="kpiCommonRuleSub">전체 비용에서 1회 차감</span>
+        </div>
+        <div class="kpi-card accent-indigo" id="kpiFinalProfitCard">
+          <span class="kpi-label">🏆 최종 순이익 (공통비용 차감 후)</span>
+          <strong class="kpi-value" id="kpiFinalProfit">0원</strong>
+          <span class="kpi-sub" id="kpiFinalMargin">최종 순이익률 0.0%</span>
+        </div>
+      </div>
+
+      <!-- 대시보드 차트 3종 -->
+      <div class="dashboard-charts-grid">
+        <div class="card chart-card">
+          <div class="card-header">
+            <h3>🎯 목표매출 vs 실제매출 및 순이익 비교</h3>
+            <span class="badge-unit">단위: 원</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="chartTargetVsActual"></canvas>
+          </div>
+        </div>
+
+        <div class="card chart-card">
+          <div class="card-header">
+            <h3>📅 월별 매출 · 총비용 · 순이익 추이 (연간)</h3>
+            <span class="badge-unit">단위: 원</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="chartMonthlyTrend"></canvas>
+          </div>
+        </div>
+
+        <div class="card chart-card">
+          <div class="card-header">
+            <h3>🛒 판매채널별 매출 비중 (도넛 차트)</h3>
+            <span class="badge-unit">매출액 기준 비중(%)</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="chartChannelShare"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 대시보드 하단 요약 표 2종 (참고 이미지 스타일) -->
+      <div class="two-col-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3>📅 월별 손익 현황 요약표</h3>
+            <span class="badge-unit">순이익률 = 월 순이익 합계 ÷ 월 매출 합계</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="dashboardMonthlyTable">
+              <thead>
+                <tr>
+                  <th>월</th>
+                  <th class="num">목표매출</th>
+                  <th class="num">실제매출</th>
+                  <th class="num">목표달성률</th>
+                  <th class="num">총비용(변동)</th>
+                  <th class="num">순이익(공통비전)</th>
+                  <th class="num">순이익률</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>🛒 판매채널별 매출 비중 및 순이익 요약</h3>
+            <span class="badge-unit">금액 및 매출 비중(%) 동시 표시</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="dashboardChannelTable">
+              <thead>
+                <tr>
+                  <th>판매채널</th>
+                  <th class="num">주문건수</th>
+                  <th class="num">매출액 (원)</th>
+                  <th class="num">매출 비중 (%)</th>
+                  <th class="num">총비용 (원)</th>
+                  <th class="num">순이익 (원)</th>
+                  <th class="num">순이익률 (%)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 시트 2: 일일 매출 입력 -->
+    <!-- ================================================================== -->
+    <section id="tab-daily" class="tab-panel">
+      <div class="info-alert">
+        <strong>💡 일일 매출 입력 규칙 안내</strong>
+        <ul>
+          <li>기본적으로 한 행에 <strong>‘날짜 × 거래처 × 판매채널’</strong>별 하루 실적을 입력합니다. 주문 1건씩 입력하지 않아도 하루 주문건수와 매출액 합계만으로 모든 비용이 자동 계산됩니다.</li>
+          <li><strong>일일 매출액</strong>은 할인·쿠폰 등을 반영한 실제 금액으로 입력하며, 별도의 할인액을 다시 차감하지 않습니다.</li>
+          <li><strong>중복 입력 주의:</strong> 같은 날짜·채널에 거래처가 여러 곳이라면 거래처별로 행을 나누어 입력하되 주문건수와 매출액이 중복 집계되지 않게 주의하세요. 또한 <strong>기본 배송비·포장비</strong>는 [3. 비용 설정]에서 자동 계산되므로 <strong>[추가 비용]란에 중복 입력하지 마세요.</strong></li>
+        </ul>
+      </div>
+
+      <!-- 신규 일일 매출 빠른 입력 폼 -->
+      <div class="card form-card">
+        <div class="card-header">
+          <h3>➕ 일일 매출 실적 추가 (노란색 입력칸)</h3>
+          <span class="legend-inline">
+            <span class="dot yellow"></span>직접 입력 항목
+            <span class="dot blue"></span>자동 계산 항목
+          </span>
+        </div>
+        <form id="addDailySaleForm" class="input-grid-form">
+          <div class="form-field">
+            <label>매출일자 *</label>
+            <input type="date" id="inSaleDate" class="input-field yellow-input" value="2026-04-30" required />
+          </div>
+          <div class="form-field">
+            <label>거래처 (드롭다운) *</label>
+            <select id="inSaleClient" class="input-select yellow-input" required></select>
+          </div>
+          <div class="form-field">
+            <label>판매채널 (드롭다운) *</label>
+            <select id="inSaleChannel" class="input-select yellow-input" required></select>
+          </div>
+          <div class="form-field">
+            <label>주문건수 (0 이상 정수) *</label>
+            <input type="number" id="inSaleOrders" class="input-field yellow-input" min="0" step="1" value="15" required />
+          </div>
+          <div class="form-field">
+            <label>일일 매출액 (할인반영, 원) *</label>
+            <input type="number" id="inSaleAmount" class="input-field yellow-input" min="0" step="100" value="650000" required />
+          </div>
+          <div class="form-field">
+            <label>일일 상품 총원가 (원) *</label>
+            <input type="number" id="inSaleCogs" class="input-field yellow-input" min="0" step="100" value="340000" required />
+          </div>
+          <div class="form-field">
+            <label>추가 비용 (특이발생분, 원)</label>
+            <input type="number" id="inSaleExtra" class="input-field yellow-input" min="0" step="100" value="0" />
+          </div>
+          <div class="form-field">
+            <label>비고 (메모)</label>
+            <input type="text" id="inSaleNote" class="input-field yellow-input" placeholder="예: 4월 말일 특가 행사" />
+          </div>
+          <div class="form-field action-col">
+            <button type="submit" class="btn btn-primary full-width">➕ 일일 매출 행 추가</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 일일 매출 내역 테이블 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>📋 일일 매출 입력 및 자동 비용·순이익 계산 시트</h3>
+          <div class="header-right-tools">
+            <label class="checkbox-label">
+              <input type="checkbox" id="chkFilterDailyByPeriod" />
+              현재 선택된 조회 기간만 보기
+            </label>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="dailySalesTable">
+            <thead>
+              <tr>
+                <th class="th-input">매출일자</th>
+                <th class="th-input">거래처</th>
+                <th class="th-input">판매채널</th>
+                <th class="th-input num">주문건수</th>
+                <th class="th-input num">일일 매출액</th>
+                <th class="th-input num">상품 총원가</th>
+                <th class="th-input num">추가 비용</th>
+                <th class="th-input">비고</th>
+                <th class="th-calc">설정상태</th>
+                <th class="th-calc num">적용 수수료율</th>
+                <th class="th-calc num">매출액 수수료</th>
+                <th class="th-calc num">1건당 비용</th>
+                <th class="th-calc num">주문건수 비용</th>
+                <th class="th-calc num">총비용</th>
+                <th class="th-calc num">순이익</th>
+                <th class="th-calc num">순이익률</th>
+                <th class="th-calc">관리</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 시트 3: 판매채널·기간별 비용 설정 -->
+    <!-- ================================================================== -->
+    <section id="tab-rates" class="tab-panel">
+      <div class="info-alert">
+        <strong>💡 판매채널·기간별 비용 이력 관리 규칙</strong>
+        <ul>
+          <li>기본 등록 채널: <strong>농라, 스마트스토어, 카톡, 고흥몰, 남도장터, 로컬푸드, 기타</strong> (6번 시트에서 채널 추가 가능)</li>
+          <li><strong>비용 변경 시 이력 유지:</strong> 수수료율이나 택배비·포장비가 바뀌면 기존 설정을 덮어쓰지 말고, <strong>기존 설정의 [적용 종료일]을 등록한 뒤 새로운 적용 기간(새 시작일) 행을 추가</strong>하세요. 이렇게 하면 과거 매출에는 당시 적용되던 비용이 그대로 유지됩니다.</li>
+          <li><strong>종료일 비워두기:</strong> 적용 종료일을 비워두면 시작일부터 별도 종료 시점 없이 계속 적용됩니다.</li>
+          <li><strong>오류 방지:</strong> 동일 채널의 적용 기간이 하루라도 겹치면 <code>⚠️ 기간 중복</code> 경고가 표시되며, 매출일자에 맞는 설정이 없으면 0원 처리하지 않고 <code>비용 설정 필요</code>로 표시합니다.</li>
+        </ul>
+      </div>
+
+      <!-- 신규 기간별 비용 설정 추가 폼 -->
+      <div class="card form-card">
+        <div class="card-header">
+          <h3>➕ 새로운 판매채널·기간 단가 설정 추가</h3>
+          <span class="badge-unit">단가 변경 시 기존 행의 종료일을 먼저 지정하세요</span>
+        </div>
+        <form id="addChannelRateForm" class="input-grid-form">
+          <div class="form-field">
+            <label>판매채널 *</label>
+            <select id="inRateChannel" class="input-select yellow-input" required></select>
+          </div>
+          <div class="form-field">
+            <label>적용 시작일 (포함) *</label>
+            <input type="date" id="inRateStart" class="input-field yellow-input" value="2026-05-01" required />
+          </div>
+          <div class="form-field">
+            <label>적용 종료일 (비워두면 계속)</label>
+            <input type="date" id="inRateEnd" class="input-field yellow-input" />
+          </div>
+          <div class="form-field">
+            <label>매출액 수수료율 (%) *</label>
+            <input type="number" id="inRateFeePct" class="input-field yellow-input" min="0" max="100" step="0.01" value="5.0" required />
+          </div>
+          <div class="form-field">
+            <label>1건당 배송비 (원) *</label>
+            <input type="number" id="inRateShip" class="input-field yellow-input" min="0" step="10" value="3500" required />
+          </div>
+          <div class="form-field">
+            <label>1건당 포장비 (원) *</label>
+            <input type="number" id="inRatePack" class="input-field yellow-input" min="0" step="10" value="1000" required />
+          </div>
+          <div class="form-field">
+            <label>1건당 기타 비용 (원) *</label>
+            <input type="number" id="inRateEtc" class="input-field yellow-input" min="0" step="10" value="0" required />
+          </div>
+          <div class="form-field">
+            <label>비고</label>
+            <input type="text" id="inRateNote" class="input-field yellow-input" placeholder="예: 5월 택배 단가 변경" />
+          </div>
+          <div class="form-field action-col">
+            <button type="submit" class="btn btn-primary full-width">➕ 기간 설정 추가</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 비용 설정 테이블 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>⚙️ 판매채널·기간별 수수료율 및 주문 1건당 비용 설정표 (표 안에서 직접 수정 가능)</h3>
+          <span class="badge-unit">스마트스토어 4/15 전·후 단가 변경 예시 포함</span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="channelRatesTable">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th class="th-input">판매채널</th>
+                <th class="th-input">적용 시작일 (포함)</th>
+                <th class="th-input">적용 종료일 (포함/빈칸=계속)</th>
+                <th class="th-input num">매출액 수수료율 (%)</th>
+                <th class="th-input num">1건당 배송비 (원)</th>
+                <th class="th-input num">1건당 포장비 (원)</th>
+                <th class="th-input num">1건당 기타 비용 (원)</th>
+                <th class="th-calc num">주문 1건당 비용 합계</th>
+                <th class="th-calc">기간 중복 검증</th>
+                <th class="th-input">비고</th>
+                <th class="th-calc">관리</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 시트 4: 거래처별·판매채널별 손익 분석 -->
+    <!-- ================================================================== -->
+    <section id="tab-analysis" class="tab-panel">
+      <div class="card control-strip">
+        <div class="strip-left">
+          <strong>📊 손익 분석 정렬 및 공통비용 배분 설정</strong>
+          <span>선택한 기간의 거래처별·판매채널별 실적을 집계합니다. 적자(&lt;0) 항목은 붉은색으로 표시됩니다.</span>
+        </div>
+        <div class="strip-right">
+          <label>정렬 기준:</label>
+          <select id="analysisSortBy" class="input-select yellow-input">
+            <option value="profit" selected>순이익 높은순</option>
+            <option value="sales">매출액 높은순</option>
+            <option value="default">기본 등록순</option>
+          </select>
+          <label>공통비용 배분:</label>
+          <select id="analysisAllocRule" class="input-select yellow-input">
+            <option value="sales" selected>매출액 비중 기준 배분</option>
+            <option value="orders">주문건수 비중 기준 배분</option>
+            <option value="none">배분 안 함 (전체에서만 차감)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 비교 그래프 2종 -->
+      <div class="two-col-grid">
+        <div class="card chart-card">
+          <div class="card-header">
+            <h3>🏢 거래처별 순이익 비교 그래프</h3>
+            <span class="badge-unit">공통비용 반영 전 vs 반영 후 (원)</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="chartClientProfit"></canvas>
+          </div>
+        </div>
+
+        <div class="card chart-card">
+          <div class="card-header">
+            <h3>🛒 판매채널별 매출액 · 순이익 비교 그래프</h3>
+            <span class="badge-unit">단위: 원</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="chartChannelCompare"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 거래처별 손익 분석표 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>🏢 1. 거래처별 손익 분석표 (동일 거래처의 여러 판매채널 실적 자동 합산)</h3>
+          <span class="badge-unit">순이익률 = 거래처 순이익 합계 ÷ 거래처 매출액 합계</span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="clientAnalysisTable">
+            <thead>
+              <tr>
+                <th>순위</th>
+                <th>거래처명</th>
+                <th class="num">주문건수</th>
+                <th class="num">매출액</th>
+                <th class="num">매출 비중</th>
+                <th class="num">상품 총원가</th>
+                <th class="num">매출액 수수료</th>
+                <th class="num">주문건수 비용</th>
+                <th class="num">추가 비용</th>
+                <th class="num">총비용(공통비전)</th>
+                <th class="num">순이익(공통비전)</th>
+                <th class="num">순이익률(전)</th>
+                <th class="num">공통비용 배분액</th>
+                <th class="num">최종 순이익(후)</th>
+                <th class="num">최종 이익률(후)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- 판매채널별 손익 분석표 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>🛒 2. 판매채널별 손익 분석표</h3>
+          <span class="badge-unit">순이익률 = 채널 순이익 합계 ÷ 채널 매출액 합계</span>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="channelAnalysisTable">
+            <thead>
+              <tr>
+                <th>순위</th>
+                <th>판매채널명</th>
+                <th class="num">주문건수</th>
+                <th class="num">매출액</th>
+                <th class="num">매출 비중</th>
+                <th class="num">상품 총원가</th>
+                <th class="num">매출액 수수료</th>
+                <th class="num">주문건수 비용</th>
+                <th class="num">추가 비용</th>
+                <th class="num">총비용(공통비전)</th>
+                <th class="num">순이익(공통비전)</th>
+                <th class="num">순이익률(전)</th>
+                <th class="num">공통비용 배분액</th>
+                <th class="num">최종 순이익(후)</th>
+                <th class="num">최종 이익률(후)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 시트 5: 목표매출 및 공통비용 설정 -->
+    <!-- ================================================================== -->
+    <section id="tab-targets" class="tab-panel">
+      <div class="info-alert">
+        <strong>🎯 임의 조회 기간 선택 시 목표매출 계산 기준 &amp; 공통비용 배분 원칙</strong>
+        <ul>
+          <li><strong>목표매출 일할 계산 기준:</strong> 한 달 전체(예: 4/1~4/30)를 조회하면 해당 월 목표매출이 100% 그대로 반영됩니다. 만약 임의의 기간(예: 4/1~4/15, 15일간)을 선택하면 <code>해당 월 목표매출 × (조회기간에 포함된 일수 ÷ 그 달의 총 일수)</code>로 일할 계산하여 정확히 합산합니다.</li>
+          <li><strong>공통비용 중복 차감 방지:</strong> 월 광고비나 임대료 등 주문건수와 무관한 공통비용은 대시보드 전체 합계에서 단 1회만 차감되며, 거래처별·채널별 분석 시에는 선택한 배분 기준(매출액 비중 등)에 따라 각 항목의 비중만큼 나누어 표시합니다.</li>
+        </ul>
+      </div>
+
+      <div class="two-col-grid">
+        <!-- 월별 목표매출 설정 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>🎯 2026년 월별 목표매출 설정 (노란색 셀 수정 시 즉시 반영)</h3>
+            <span class="badge-unit">단위: 원</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="monthlyTargetsTable">
+              <thead>
+                <tr>
+                  <th>월</th>
+                  <th>월 총일수</th>
+                  <th class="th-input num">월별 목표매출 (원)</th>
+                  <th class="th-calc num">일할 목표매출 (원/일)</th>
+                  <th class="th-calc num">현재 조회기간 반영액</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- 월별 공통비용 설정 -->
+        <div class="card">
+          <div class="card-header">
+            <h3>🏢 공통비용(월 광고비·임대료 등 고정비) 입력 및 관리</h3>
+            <span class="badge-unit">주문건수와 무관한 고정비</span>
+          </div>
+          <form id="addCommonCostForm" class="inline-add-form">
+            <input type="date" id="inCommonDate" class="input-field yellow-input" value="2026-04-30" required />
+            <input type="text" id="inCommonCat" class="input-field yellow-input" placeholder="항목 (예: 월 광고비)" required />
+            <input type="number" id="inCommonAmt" class="input-field yellow-input" placeholder="금액(원)" min="0" step="1000" required />
+            <input type="text" id="inCommonNote" class="input-field yellow-input" placeholder="비고 메모" />
+            <button type="submit" class="btn btn-primary">➕ 추가</button>
+          </form>
+          <div class="table-responsive">
+            <table class="data-table" id="commonCostsTable">
+              <thead>
+                <tr>
+                  <th class="th-input">지출/귀속일자</th>
+                  <th class="th-input">공통비용 항목</th>
+                  <th class="th-input num">금액 (원)</th>
+                  <th class="th-calc">조회기간 포함</th>
+                  <th class="th-input">비고</th>
+                  <th class="th-calc">관리</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 시트 6: 사용 설명서 및 기준 관리 -->
+    <!-- ================================================================== -->
+    <section id="tab-guide" class="tab-panel">
+      <div class="two-col-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3>🛒 판매채널 및 거래처 등록 관리 (드롭다운 연동)</h3>
+            <span class="badge-unit">추가 시 입력창 드롭다운에 즉시 반영</span>
+          </div>
+          <div class="master-lists-grid">
+            <div>
+              <h4>판매채널 목록</h4>
+              <form id="addChannelMasterForm" class="inline-add-form">
+                <input type="text" id="inNewChannelName" class="input-field yellow-input" placeholder="새 판매채널명 입력" required />
+                <button type="submit" class="btn btn-primary">추가</button>
+              </form>
+              <ul id="channelMasterList" class="tag-list"></ul>
+            </div>
+            <div>
+              <h4>거래처 목록</h4>
+              <form id="addClientMasterForm" class="inline-add-form">
+                <input type="text" id="inNewClientName" class="input-field yellow-input" placeholder="새 거래처명 입력" required />
+                <button type="submit" class="btn btn-primary">추가</button>
+              </form>
+              <ul id="clientMasterList" class="tag-list"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>📐 핵심 계산 공식 및 검증 기준</h3>
+            <span class="badge-unit">엑셀 수식 100% 동일 적용</span>
+          </div>
+          <div class="guide-box-list">
+            <div class="guide-item">
+              <strong>1. 항목별 자동 계산 공식</strong>
+              <p>• <code>매출액 기준 수수료</code> = 일일 매출액 × 해당 날짜의 채널 수수료율</p>
+              <p>• <code>주문 1건당 비용</code> = 해당 날짜의 배송비 + 포장비 + 기타 건당 비용</p>
+              <p>• <code>주문건수에 따른 비용</code> = 주문건수 × 해당 날짜의 주문 1건당 비용</p>
+              <p>• <code>총비용</code> = 상품 총원가 + 매출액 기준 수수료 + 주문건수에 따른 비용 + 추가 비용</p>
+              <p>• <code>순이익</code> = 일일 매출액 − 총비용 &nbsp;|&nbsp; <code>순이익률</code> = 순이익 ÷ 일일 매출액 × 100</p>
+            </div>
+            <div class="guide-item">
+              <strong>2. 기간별 단가 변경 확인 (검증 완료)</strong>
+              <p>예시 데이터에서 <strong>스마트스토어</strong>는 <code>2026-04-15</code>까지 수수료 5.5%·건당비용 4,110원이 적용되고, <code>2026-04-16</code>부터는 수수료 5.8%·건당비용 4,830원이 적용됩니다. 4월 14일 매출(순이익 273,800원)과 4월 17일 매출(순이익 257,000원)에서 단가 변경 전후가 정확히 분리 계산되는 것을 바로 확인하실 수 있습니다.</p>
+            </div>
+            <div class="guide-item">
+              <strong>3. 부가세(VAT) 및 반품·취소 처리 안내</strong>
+              <p>• 모든 금액은 <strong>부가세(VAT) 포함 실결제/실지출 금액</strong>을 기준으로 입력합니다.</p>
+              <p>• 발송 전 주문 취소는 당일 주문건수와 매출액에서 제외하고 입력합니다.</p>
+              <p>• 발송 후 반품/교환 시에는 당일 매출액에서 환불액을 차감하고, 회수·재발송 택배비 등 실제 발생한 비용은 <strong>[추가 비용]</strong> 칸에 입력해 주세요.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
