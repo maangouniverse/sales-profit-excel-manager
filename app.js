@@ -114,13 +114,50 @@ function loadState() {
   return JSON.parse(JSON.stringify(INITIAL_STATE));
 }
 
-function saveState() {
+let toastTimer = null;
+
+function showSaveToast(message) {
+  const toast = document.getElementById('saveToast');
+  const msgEl = document.getElementById('saveToastMsg');
+  if (!toast || !msgEl) return;
+  msgEl.textContent = message || '입력·수정하신 모든 내용이 안전하게 저장되었습니다!';
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 2600);
+}
+
+function updateSavedBadgeTimestamp() {
+  const badge = document.getElementById('lastSavedBadge');
+  if (!badge) return;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  badge.textContent = `✅ 저장 완료 (${hh}:${mm}:${ss})`;
+}
+
+function saveState(toastMessage) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    updateSavedBadgeTimestamp();
+    if (toastMessage) {
+      showSaveToast(toastMessage);
+    }
   } catch (e) {
     console.warn(e);
   }
 }
+
+window.triggerManualSave = function(customMsg) {
+  // 현재 포커스된 입력칸이 있으면 변경사항 즉시 반영 후 저장
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
+  saveState(customMsg || '💾 현재까지 입력·수정하신 모든 내용이 안전하게 저장되었습니다!');
+  renderAll();
+};
 
 function fmtWon(n) {
   if (typeof n !== 'number' || isNaN(n)) return n;
@@ -137,17 +174,26 @@ function fmtPct(r, digits = 1) {
   return (r * 100).toFixed(digits) + '%';
 }
 
+function escapeHtmlAttr(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 // 실적자동계산1.png 스타일 날짜 표시: "26년 11월 2일 (월)" + 토/일 요일 클래스
 function formatKoreanDateWithDay(yyyyMmDd) {
-  if (!yyyyMmDd) return { text: '', cls: '' };
+  if (!yyyyMmDd) return { text: '', dayChar: '', cls: '' };
   const [y, m, d] = yyyyMmDd.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   const days = ['일', '월', '화', '수', '목', '금', '토'];
   const dayIdx = dt.getUTCDay();
   const shortY = String(y).slice(2);
-  const text = `${shortY}년 ${m}월 ${d}일 (${days[dayIdx]})`;
+  const dayChar = days[dayIdx] || '';
+  const text = `${shortY}년 ${m}월 ${d}일 (${dayChar})`;
   const cls = dayIdx === 6 ? 'date-sat' : dayIdx === 0 ? 'date-sun' : '';
-  return { text, cls };
+  return { text, dayChar, cls };
 }
 
 // 현재 적용된 조회 시작일 ~ 종료일 계산
@@ -686,17 +732,37 @@ function renderDailySalesTable(evaluatedSales, start, end) {
     const dFormatted = formatKoreanDateWithDay(r.date);
     const errCls = !r.isValid ? 'cell-error' : '';
     const profitCls = !r.isValid ? 'cell-error' : r.netProfit < 0 ? 'cell-negative' : 'profit-pos';
+    const chOpts = state.channels
+      .map(ch => `<option value="${escapeHtmlAttr(ch)}" ${ch === r.channel ? 'selected' : ''}>${escapeHtmlAttr(ch)}</option>`)
+      .join('');
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="${dFormatted.cls}">${dFormatted.text}</td>
-      <td><strong>${r.channel}</strong></td>
-      <td class="num">${fmtNum(r.ordersUnder10)}</td>
-      <td class="num">${fmtNum(r.ordersOver10)}</td>
+      <td>
+        <input type="date" class="table-inline-date date-clickable" value="${r.date}" onchange="updateDailyField(${r.id}, 'date', this.value)" />
+        <span class="date-day-badge ${dFormatted.cls}">(${dFormatted.dayChar})</span>
+      </td>
+      <td>
+        <select class="table-inline-select" onchange="updateDailyField(${r.id}, 'channel', this.value)">
+          ${chOpts}
+        </select>
+      </td>
+      <td class="num">
+        <input type="number" class="table-inline-input" style="width:74px" min="0" step="1" value="${r.ordersUnder10}" onchange="updateDailyField(${r.id}, 'ordersUnder10', Math.max(0, Math.round(Number(this.value)||0)))" />
+      </td>
+      <td class="num">
+        <input type="number" class="table-inline-input" style="width:74px" min="0" step="1" value="${r.ordersOver10}" onchange="updateDailyField(${r.id}, 'ordersOver10', Math.max(0, Math.round(Number(this.value)||0)))" />
+      </td>
       <td class="num"><strong>${fmtNum(r.totalOrders)}</strong></td>
-      <td class="num"><strong>${fmtNum(r.sales)}</strong></td>
-      <td class="num">${r.extraCost > 0 ? fmtNum(r.extraCost) : ''}</td>
-      <td style="text-align:left;color:#555;">${r.note || ''}</td>
+      <td class="num">
+        <input type="number" class="table-inline-input" style="width:110px" min="0" step="100" value="${r.sales}" onchange="updateDailyField(${r.id}, 'sales', Math.max(0, Number(this.value)||0))" />
+      </td>
+      <td class="num">
+        <input type="number" class="table-inline-input" style="width:88px" min="0" step="100" value="${r.extraCost || 0}" onchange="updateDailyField(${r.id}, 'extraCost', Math.max(0, Number(this.value)||0))" />
+      </td>
+      <td>
+        <input type="text" class="table-inline-text" value="${escapeHtmlAttr(r.note)}" onchange="updateDailyField(${r.id}, 'note', this.value)" placeholder="비고 입력" />
+      </td>
       <td class="${errCls}">${r.status}</td>
       <td class="num ${errCls}">${r.isValid ? fmtPct(r.feeRate, 2) : '비용 설정 필요'}</td>
       <td class="num ${errCls}">${r.isValid ? fmtNum(r.feeAmt) : '비용 설정 필요'}</td>
@@ -706,7 +772,12 @@ function renderDailySalesTable(evaluatedSales, start, end) {
       <td class="num ${errCls}"><strong>${r.isValid ? fmtNum(r.totalCost) : '비용 설정 필요'}</strong></td>
       <td class="num ${profitCls}">${r.isValid ? fmtNum(r.netProfit) : '비용 설정 필요'}</td>
       <td class="num ${errCls}">${r.isValid ? fmtPct(r.margin, 1) : '비용 설정 필요'}</td>
-      <td><button class="btn-danger-sm" onclick="deleteDailyRow(${r.id})">삭제</button></td>
+      <td>
+        <div class="row-action-group">
+          <button type="button" class="btn-save-sm" onclick="triggerManualSave('해당 일일 매출·주문 내역이 저장되었습니다!')">💾 저장</button>
+          <button type="button" class="btn-danger-sm" onclick="deleteDailyRow(${r.id})">삭제</button>
+        </div>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -744,11 +815,18 @@ function renderChannelRatesTable() {
     const sumOver10 = (Number(r.shipOver10) || 0) + packSum;
     const status = checkRateOverlap(r, state.channelRates);
     const isErr = status !== '정상';
+    const chOpts = state.channels
+      .map(ch => `<option value="${escapeHtmlAttr(ch)}" ${ch === r.channel ? 'selected' : ''}>${escapeHtmlAttr(ch)}</option>`)
+      .join('');
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${idx + 1}</td>
-      <td><strong>${r.channel}</strong></td>
+      <td>
+        <select class="table-inline-select" onchange="updateRateField(${r.id}, 'channel', this.value)">
+          ${chOpts}
+        </select>
+      </td>
       <td><input type="date" class="table-inline-date date-clickable" value="${r.start}" onchange="updateRateField(${r.id}, 'start', this.value)" /></td>
       <td><input type="date" class="table-inline-date date-clickable" value="${r.end || ''}" onchange="updateRateField(${r.id}, 'end', this.value)" /></td>
       <td class="num"><input type="number" class="table-inline-input" step="0.1" value="${(r.feeRate * 100).toFixed(2)}" onchange="updateRateField(${r.id}, 'feeRate', Number(this.value)/100)" />%</td>
@@ -760,8 +838,15 @@ function renderChannelRatesTable() {
       <td class="num"><strong>${fmtWon(sumUnder10)}</strong></td>
       <td class="num"><strong>${fmtWon(sumOver10)}</strong></td>
       <td class="${isErr ? 'cell-error' : ''}">${status}</td>
-      <td style="text-align:left;color:#555;">${r.note || ''}</td>
-      <td><button class="btn-danger-sm" onclick="deleteRateRow(${r.id})">삭제</button></td>
+      <td>
+        <input type="text" class="table-inline-text" value="${escapeHtmlAttr(r.note)}" onchange="updateRateField(${r.id}, 'note', this.value)" placeholder="비고 입력" />
+      </td>
+      <td>
+        <div class="row-action-group">
+          <button type="button" class="btn-save-sm" onclick="triggerManualSave('해당 채널 비용 설정이 저장되었습니다!')">💾 저장</button>
+          <button type="button" class="btn-danger-sm" onclick="deleteRateRow(${r.id})">삭제</button>
+        </div>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -946,7 +1031,7 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
     </tr>
   `;
 
-  // 공통비용 표
+  // 공통비용 표 (인라인 수정 및 저장/삭제 지원)
   const cTbody = document.querySelector('#commonCostsTable tbody');
   const cTfoot = document.querySelector('#commonCostsTable tfoot');
   cTbody.innerHTML = '';
@@ -958,12 +1043,25 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${c.date}</td>
-      <td><strong>${c.category}</strong></td>
-      <td class="num">${fmtWon(c.amount)}</td>
+      <td>
+        <input type="date" class="table-inline-date date-clickable" value="${c.date}" onchange="updateCommonField(${c.id}, 'date', this.value)" />
+      </td>
+      <td>
+        <input type="text" list="commonCostCatList" class="table-inline-text" style="width:140px;font-weight:700;" value="${escapeHtmlAttr(c.category)}" onchange="updateCommonField(${c.id}, 'category', this.value)" />
+      </td>
+      <td class="num">
+        <input type="number" class="table-inline-input" style="width:105px;" min="0" step="1000" value="${c.amount}" onchange="updateCommonField(${c.id}, 'amount', Math.max(0, Number(this.value)||0))" />
+      </td>
       <td>${inPeriod ? '✅ 포함' : '제외'}</td>
-      <td style="text-align:left;color:#555;">${c.note || ''}</td>
-      <td><button class="btn-danger-sm" onclick="deleteCommonCost(${c.id})">삭제</button></td>
+      <td>
+        <input type="text" class="table-inline-text" style="width:165px;" value="${escapeHtmlAttr(c.note)}" onchange="updateCommonField(${c.id}, 'note', this.value)" placeholder="비고 입력" />
+      </td>
+      <td>
+        <div class="row-action-group">
+          <button type="button" class="btn-save-sm" onclick="triggerManualSave('해당 공통비용 내역이 저장되었습니다!')">💾 저장</button>
+          <button type="button" class="btn-danger-sm" onclick="deleteCommonCost(${c.id})">삭제</button>
+        </div>
+      </td>
     `;
     cTbody.appendChild(tr);
   });
@@ -1092,13 +1190,22 @@ function attachCalendarPickers() {
 // ============================================================================
 window.deleteDailyRow = function(id) {
   state.dailySales = state.dailySales.filter(r => r.id !== id);
-  saveState();
+  saveState('🗑️ 일일 매출 내역이 삭제 및 저장되었습니다.');
   renderAll();
+};
+
+window.updateDailyField = function(id, field, val) {
+  const target = state.dailySales.find(r => r.id === id);
+  if (target) {
+    target[field] = val;
+    saveState('✅ 일일 매출·주문 수정사항이 저장되었습니다.');
+    renderAll();
+  }
 };
 
 window.deleteRateRow = function(id) {
   state.channelRates = state.channelRates.filter(r => r.id !== id);
-  saveState();
+  saveState('🗑️ 판매채널 비용 설정이 삭제 및 저장되었습니다.');
   renderAll();
 };
 
@@ -1106,7 +1213,7 @@ window.updateRateField = function(id, field, val) {
   const target = state.channelRates.find(r => r.id === id);
   if (target) {
     target[field] = val;
-    saveState();
+    saveState('✅ 판매채널 비용 설정 수정사항이 저장되었습니다.');
     renderAll();
   }
 };
@@ -1115,18 +1222,35 @@ window.updateMonthlyTarget = function(ym, val) {
   const t = state.targetMonths.find(x => x.ym === ym);
   if (t) {
     t.target = Math.max(0, val || 0);
-    saveState();
+    saveState('✅ 월별 목표매출이 저장되었습니다.');
     renderAll();
   }
 };
 
 window.deleteCommonCost = function(id) {
   state.commonCosts = state.commonCosts.filter(c => c.id !== id);
-  saveState();
+  saveState('🗑️ 공통비용 내역이 삭제 및 저장되었습니다.');
   renderAll();
 };
 
+window.updateCommonField = function(id, field, val) {
+  const target = state.commonCosts.find(c => c.id === id);
+  if (target) {
+    target[field] = val;
+    saveState('✅ 공통비용 수정사항이 저장되었습니다.');
+    renderAll();
+  }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+  // 상단 '현재 내용 저장하기' 버튼 연결
+  const btnManualSave = document.getElementById('btnManualSave');
+  if (btnManualSave) {
+    btnManualSave.addEventListener('click', () => {
+      window.triggerManualSave('💾 현재까지 입력·수정하신 모든 내용이 안전하게 저장되었습니다!');
+    });
+  }
+
   // 탭 전환 및 상단 부제목 업데이트
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1157,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 예시 데이터 초기화
   document.getElementById('btnResetSample').addEventListener('click', () => {
     state = JSON.parse(JSON.stringify(INITIAL_STATE));
-    saveState();
+    saveState('🔄 기본 예시 데이터로 초기화되었습니다.');
     renderAll();
   });
 
@@ -1180,7 +1304,7 @@ document.addEventListener('DOMContentLoaded', () => {
       extraCost: Number(document.getElementById('inSaleExtra').value) || 0,
       note: document.getElementById('inSaleNote').value
     });
-    saveState();
+    saveState('➕ 새로운 일일 매출·주문 내역이 추가 및 저장되었습니다!');
     renderAll();
     document.getElementById('inSaleNote').value = '';
   });
@@ -1201,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', () => {
       leafletCost: Number(document.getElementById('inRateLeaflet').value) || 0,
       note: document.getElementById('inRateNote').value
     });
-    saveState();
+    saveState('➕ 새로운 판매채널 비용 설정이 추가 및 저장되었습니다!');
     renderAll();
     document.getElementById('inRateNote').value = '';
   });
@@ -1216,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', () => {
       amount: Number(document.getElementById('inCommonAmt').value) || 0,
       note: document.getElementById('inCommonNote').value
     });
-    saveState();
+    saveState('➕ 새로운 공통비용 내역이 추가 및 저장되었습니다!');
     renderAll();
     document.getElementById('inCommonCat').value = '';
     document.getElementById('inCommonAmt').value = '';
@@ -1229,7 +1353,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const name = document.getElementById('inNewChannelName').value.trim();
     if (name && !state.channels.includes(name)) {
       state.channels.push(name);
-      saveState();
+      saveState(`➕ 새로운 판매채널 [${name}]이(가) 추가 및 저장되었습니다!`);
       renderAll();
     }
     document.getElementById('inNewChannelName').value = '';
