@@ -874,6 +874,46 @@ body {
   gap: 4px;
 }
 
+.etc-guide-banner {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fff8eb;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  color: #b45309;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.etc-input-highlight {
+  border-color: #ef4444 !important;
+  background-color: #fff5f5 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.14);
+}
+
+.etc-inline-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #dc2626;
+  text-align: left;
+}
+
+.sheet-table tr.subtotal-row td {
+  background-color: #f8fafc;
+  font-weight: 700;
+  color: #1e293b;
+  border-top: 1px solid #cbd5e1;
+}
+
+.sheet-table tr.period-highlight-row td {
+  background-color: #eef4ff;
+  font-weight: 800;
+  color: #1e3a8a;
+  border-top: 1px solid #93c5fd;
+}
+
 .perf-hero-grid > *,
 .top5-showcase-grid > *,
 .top5-inner-grid > *,

@@ -31,7 +31,7 @@
       <button class="tab-btn" data-tab="tab-daily" data-subtitle="| 일일 매출·주문내역 입력">📝 2. 일일 매출 입력 (10kg 미만/이상)</button>
       <button class="tab-btn" data-tab="tab-rates" data-subtitle="| 판매채널·기간별 비용 설정">⚙️ 3. 판매채널·기간별 비용 설정</button>
       <button class="tab-btn" data-tab="tab-analysis" data-subtitle="| 판매채널별 손익 상세현황">📈 4. 판매채널별 손익 분석</button>
-      <button class="tab-btn" data-tab="tab-targets" data-subtitle="| 목표매출(26.11~27.10) 및 공통비용 설정">🎯 5. 목표매출·공통비용 설정</button>
+      <button class="tab-btn" data-tab="tab-targets" data-subtitle="| 목표매출(26.11~27.10) 및 공통비용 입력 시트">🎯 5. 목표매출·공통비용 입력 시트</button>
       <button class="tab-btn" data-tab="tab-guide" data-subtitle="| 사용 설명서 및 채널 관리">📖 6. 사용 설명서·채널 관리</button>
     </nav>
   </header>
@@ -43,14 +43,16 @@
         <div class="filter-item">
           <label for="filterMode">조회 방식</label>
           <select id="filterMode" class="input-select yellow-input">
-            <option value="month" selected>연월 선택 조회 (26.11~27.10)</option>
-            <option value="custom">시작일·종료일 달력 선택</option>
+            <option value="month" selected>월별 · 연도별 선택 조회</option>
+            <option value="custom">조회 기간 직접 선택 (달력)</option>
           </select>
         </div>
         <div class="filter-item" id="yearMonthGroup">
-          <label for="filterYm">조회 연월 선택 (2026년 11월 ~ 2027년 10월)</label>
+          <label for="filterYm">조회 연월 · 연도 선택</label>
           <select id="filterYm" class="input-select yellow-input">
             <option value="all">전체 기간 (2026년 11월 ~ 2027년 10월)</option>
+            <option value="year-2026">2026년 전체 (연도별 조회)</option>
+            <option value="year-2027">2027년 전체 (연도별 조회)</option>
             <option value="2026-11" selected>26년 11월</option>
             <option value="2026-12">26년 12월</option>
             <option value="2027-01">27년 1월</option>
@@ -126,14 +128,14 @@
               <span class="mini-sub" id="kpiOrdersSplitSub">10kg미만 0건 · 10kg이상 0건</span>
             </div>
             <div class="perf-mini-card">
-              <span class="mini-label">총 비용 (수수료+택배·포장+추가)</span>
+              <span class="mini-label">판매채널 비용 (주문1건당+수수료+추가)</span>
               <strong class="mini-val" id="kpiTotalVarCost">0원</strong>
-              <span class="mini-sub" id="kpiNetMargin">순이익률 0.0%</span>
+              <span class="mini-sub" id="kpiNetMargin">순이익률 0.0% (공통비 별도)</span>
             </div>
             <div class="perf-mini-card">
               <span class="mini-label">최종 순이익 (공통비 차감 후)</span>
               <strong class="mini-val" id="kpiFinalProfit">0원</strong>
-              <span class="mini-sub" id="kpiCommonCostSub">공통비용 0원 반영</span>
+              <span class="mini-sub" id="kpiCommonCostSub">공통비용 0원 별도 차감</span>
             </div>
           </div>
         </div>
@@ -207,8 +209,8 @@
       <div class="two-col-grid">
         <div class="soft-card">
           <div class="card-header">
-            <h3>월별 손익현황 (26년 11월 ~ 27년 10월)</h3>
-            <span class="badge-unit">목표매출 총합계 확인 가능</span>
+            <h3>월별·연도별 손익현황 (26년 11월 ~ 27년 10월 | 채널비용·공통비용 별도 반영)</h3>
+            <span class="badge-unit">월별·연도별 공통비용 자동 집계 반영</span>
           </div>
           <div class="table-responsive">
             <table class="sheet-table" id="dashboardMonthlyTable">
@@ -218,9 +220,11 @@
                   <th class="num">목표매출</th>
                   <th class="num">총 매출</th>
                   <th class="num">달성률</th>
-                  <th class="num">총 지출(비용)</th>
-                  <th class="num">순이익</th>
-                  <th class="num">이익률</th>
+                  <th class="num">채널 비용<br/>(주문건당+수수료)</th>
+                  <th class="num">순이익<br/>(공통비 전)</th>
+                  <th class="num">공통비용<br/>(8개 항목)</th>
+                  <th class="num">최종 순이익<br/>(공통비 후)</th>
+                  <th class="num">최종 이익률</th>
                   <th class="num">주문건수</th>
                 </tr>
               </thead>
@@ -246,15 +250,15 @@
       <!-- 최하단: 공통비용 항목별 지출 비중 현황 & 그래프 (실적자동계산2.png 우측 하단 '항목별 지출 비중' 스타일) -->
       <div class="top5-showcase-grid">
         <div class="top5-block">
-          <h3 class="section-heading">공통비용 항목별 지출 비중 (선택 기간)</h3>
+          <h3 class="section-heading">공통비용 8개 항목별 합계 및 지출 비중 (조회 기간)</h3>
           <div class="top5-inner-grid">
             <div class="table-responsive">
               <table class="clean-rank-table" id="dashboardCommonCostTable">
                 <thead>
                   <tr>
                     <th style="width:46px;">No</th>
-                    <th>공통비용 항목명</th>
-                    <th class="num">지출액 (원)</th>
+                    <th>비용 항목 (8개 구분)</th>
+                    <th class="num">지출 합계 (원)</th>
                     <th class="num">비중</th>
                   </tr>
                 </thead>
@@ -271,7 +275,7 @@
         </div>
 
         <div class="top5-block">
-          <h3 class="section-heading">공통비용 항목별 지출 금액 비교 그래프 (선택기간 vs 전체누적)</h3>
+          <h3 class="section-heading">공통비용 8개 항목별 지출 금액 비교 (조회기간 vs 전체누적)</h3>
           <div class="soft-card">
             <div class="chart-box-doughnut" style="height:255px;">
               <canvas id="chartCommonCostBar"></canvas>
@@ -580,118 +584,147 @@
     </section>
 
     <!-- ================================================================== -->
-    <!-- 시트 5: 목표매출(2026.11~2027.10) 및 공통비용 설정 -->
+    <!-- 시트 5: 목표매출(2026.11~2027.10) 및 공통비용 입력 시트 -->
     <!-- ================================================================== -->
     <section id="tab-targets" class="tab-panel">
-      <!-- 목표매출 합계 상단 강조 배너 -->
+      <!-- 목표매출 & 공통비용 상단 요약 배너 -->
       <div class="target-summary-strip soft-card">
         <div class="target-sum-box">
-          <span>🎯 목표설정 대상 기간</span>
-          <strong>2026년 11월 ~ 2027년 10월 (12개월)</strong>
+          <span>🎯 12개월 목표매출 총합계 (26.11~27.10)</span>
+          <strong id="tab5TotalTargetSum">0원</strong>
+          <small id="tab5AppliedTargetSub" style="color:#64748b; font-size:12px;">조회기간 목표매출: <span id="tab5AppliedTargetSum">0원</span></small>
         </div>
         <div class="target-sum-box primary">
-          <span>💰 12개월 목표매출 총합계</span>
-          <strong id="tab5TotalTargetSum">0원</strong>
-        </div>
-        <div class="target-sum-box">
-          <span>📅 현재 선택된 조회기간 목표매출 합계</span>
-          <strong id="tab5AppliedTargetSum">0원</strong>
-        </div>
-        <div class="target-sum-box">
-          <span>🏢 현재 조회기간 공통비용 합계</span>
+          <span>📅 조회기간 공통비용 합계</span>
           <strong id="tab5PeriodCommonSum">0원</strong>
+          <small id="tab5PeriodCommonCountSub" style="color:#2b4cbe; font-size:12px; font-weight:600;">조회기간 0건 (주문 1건당 비용과 별도)</small>
+        </div>
+        <div class="target-sum-box">
+          <span>📆 연도별 공통비용 합계 (발생일자 기준)</span>
+          <strong id="tab5YearlyCommonSum">26년 0원 / 27년 0원</strong>
+          <small style="color:#64748b; font-size:12px;">발생일자 연도 기준 자동 집계</small>
+        </div>
+        <div class="target-sum-box">
+          <span>🏢 공통비용 총합계 (전체 누적)</span>
+          <strong id="tab5TotalCommonSum">0원</strong>
+          <small id="tab5TotalCommonCountSub" style="color:#64748b; font-size:12px;">8개 항목 총 0건 입력됨</small>
         </div>
       </div>
 
-      <div class="two-col-grid">
-        <!-- 월별 목표매출 설정 (2026년 11월 ~ 2027년 10월) -->
-        <div class="soft-card">
-          <div class="card-header">
-            <h3>🎯 월별 목표매출 설정 (2026년 11월 ~ 2027년 10월)</h3>
-            <div class="header-right-tools">
-              <span class="badge-unit">노란색 셀 수정 가능</span>
-              <button type="button" class="btn btn-save btn-sm" onclick="triggerManualSave('월별 목표매출 설정이 저장되었습니다!')">💾 목표매출 저장</button>
-            </div>
-          </div>
-          <div class="table-responsive">
-            <table class="sheet-table" id="monthlyTargetsTable">
-              <thead>
-                <tr>
-                  <th>대상 연월</th>
-                  <th>적용 기간</th>
-                  <th>총 일수</th>
-                  <th class="num">월별 목표매출 (원)</th>
-                  <th class="num">일할 목표매출 (원/일)</th>
-                  <th class="num">조회기간 반영 목표매출</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-              <tfoot></tfoot>
-            </table>
-          </div>
+      <!-- 1. 공통비용 입력 시트 (8개 항목 드롭다운 + 5개 입력 열 구성) -->
+      <div class="soft-card form-card">
+        <div class="info-alert" style="margin-bottom:16px;">
+          <strong>💡 공통비용 입력 시트 안내 (판매채널의 주문 1건당 비용과 별도 관리)</strong>
+          <ul>
+            <li>공통비용은 <strong>8개 항목(종묘비, 무기질비료비, 유기질비료비, 농약비, 수도광열비, 기타재료비, 고용노동비, 기타)</strong> 중 드롭다운으로 선택해 한 행에 한 건씩 입력합니다.</li>
+            <li>입력 열은 <strong>[발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고]</strong>로 구성되며, <strong>같은 날짜와 같은 항목으로 여러 건</strong>을 자유롭게 입력할 수 있습니다.</li>
+            <li>비용 항목에서 <strong>‘기타’</strong>를 선택한 경우 어떤 지출인지 알아보실 수 있도록 <strong>[상세 내역]</strong>을 입력해 주세요.</li>
+            <li>입력된 공통비용은 판매채널의 주문 1건당 비용(택배비·박스·비닐·리플렛)과 <strong>별도로 관리</strong>되며, 발생일자를 기준으로 <strong>월별·연도별·조회 기간별</strong>로 자동 집계되어 손익에 반영됩니다.</li>
+          </ul>
         </div>
 
-        <!-- 월별 공통비용 설정 -->
-        <div class="soft-card">
-          <div class="card-header">
-            <h3>🏢 공통비용(월 광고비·임대료 등 고정비) 입력</h3>
-            <div class="header-right-tools">
-              <span class="badge-unit">주문건수와 무관한 고정비</span>
-              <button type="button" class="btn btn-save btn-sm" onclick="triggerManualSave('공통비용 내역이 저장되었습니다!')">💾 공통비용 저장</button>
-            </div>
+        <div class="card-header">
+          <h3>➕ 공통비용 건별 입력 (한 행에 1건 입력 · 같은 날짜/항목 복수 입력 가능)</h3>
+          <span class="legend-inline">
+            <span class="dot yellow"></span>직접 입력 (발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고)
+          </span>
+        </div>
+
+        <form id="addCommonCostForm" class="input-grid-form common-cost-grid-form">
+          <div class="form-field">
+            <label for="inCommonDate">발생일자 (달력 선택) *</label>
+            <input type="date" id="inCommonDate" class="input-field yellow-input date-clickable" value="2026-11-01" required />
           </div>
-          <form id="addCommonCostForm" class="inline-add-form">
-            <input type="date" id="inCommonDate" class="input-field yellow-input date-clickable" value="2026-11-30" required />
-            <input type="text" id="inCommonCat" list="commonCostCatList" class="input-field yellow-input" placeholder="항목 선택/입력 (예: 월 광고선전비)" required />
-            <datalist id="commonCostCatList">
-              <option value="월 광고선전비"></option>
-              <option value="작업장/창고 임대료"></option>
-              <option value="인건비/작업비"></option>
-              <option value="공과금/통신/프로그램"></option>
-              <option value="기타 공통고정비"></option>
-            </datalist>
-            <input type="number" id="inCommonAmt" class="input-field yellow-input" placeholder="금액(원)" min="0" step="1000" required />
-            <input type="text" id="inCommonNote" class="input-field yellow-input" placeholder="비고 메모" />
-            <button type="submit" class="btn btn-primary">➕ 추가</button>
-          </form>
-          <div class="table-responsive">
-            <table class="sheet-table" id="commonCostsTable">
-              <thead>
-                <tr>
-                  <th>📅 지출/귀속일자</th>
-                  <th>공통비용 항목</th>
-                  <th class="num">금액 (원)</th>
-                  <th>조회기간 포함</th>
-                  <th>비고</th>
-                  <th>관리 (저장/삭제)</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-              <tfoot></tfoot>
-            </table>
+          <div class="form-field">
+            <label for="inCommonCat">비용 항목 (8개 항목 드롭다운) *</label>
+            <select id="inCommonCat" class="input-select yellow-input" required>
+              <option value="종묘비">종묘비</option>
+              <option value="무기질비료비">무기질비료비</option>
+              <option value="유기질비료비">유기질비료비</option>
+              <option value="농약비">농약비</option>
+              <option value="수도광열비">수도광열비</option>
+              <option value="기타재료비">기타재료비</option>
+              <option value="고용노동비">고용노동비</option>
+              <option value="기타">기타</option>
+            </select>
           </div>
+          <div class="form-field">
+            <label for="inCommonDetail" id="inCommonDetailLabel">상세 내역</label>
+            <input type="text" id="inCommonDetail" class="input-field yellow-input" placeholder="구체적인 품목이나 지출 내역 입력" />
+          </div>
+          <div class="form-field">
+            <label for="inCommonAmt">금액 (원) *</label>
+            <input type="number" id="inCommonAmt" class="input-field yellow-input" placeholder="0" min="0" step="100" required />
+          </div>
+          <div class="form-field">
+            <label for="inCommonNote">비고</label>
+            <input type="text" id="inCommonNote" class="input-field yellow-input" placeholder="결제수단·구매처 등 메모" />
+          </div>
+          <div class="form-field action-col">
+            <button type="submit" class="btn btn-primary full-width">➕ 공통비용 추가</button>
+          </div>
+        </form>
+
+        <!-- '기타' 선택 시 상세 내역 입력 안내 배너 -->
+        <div id="commonEtcGuideBanner" class="etc-guide-banner" style="display:none;">
+          <span>⚠️ <strong>‘기타’ 항목을 선택하셨습니다.</strong> 어떤 비용인지 확인하실 수 있도록 <strong>[상세 내역]</strong> 칸에 구체적인 지출 내용을 입력해 주세요.</span>
+        </div>
+      </div>
+
+      <!-- 공통비용 입력 시트 테이블 -->
+      <div class="soft-card">
+        <div class="card-header">
+          <h3>🏢 공통비용 입력 시트 <span class="badge-unit" style="margin-left:8px;">(발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고 | 노란색 칸에서 바로 수정 가능)</span></h3>
+          <div class="header-right-tools">
+            <label class="checkbox-label">
+              <input type="checkbox" id="chkFilterCommonByPeriod" />
+              현재 선택된 조회 기간만 보기
+            </label>
+            <button type="button" class="btn btn-save btn-sm" onclick="triggerManualSave('공통비용 내역이 저장되었습니다!')">💾 공통비용 저장</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="sheet-table" id="commonCostsTable">
+            <thead>
+              <tr>
+                <th style="width:52px;">No</th>
+                <th>발생일자 (달력)</th>
+                <th>비용 항목 (8개 드롭다운)</th>
+                <th>상세 내역</th>
+                <th class="num">금액 (원)</th>
+                <th>비고</th>
+                <th>귀속연월 · 조회기간 반영</th>
+                <th>관리 (저장/삭제)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
         </div>
       </div>
 
       <hr class="section-divider" />
 
-      <!-- 시트 5 하단: 공통비용 항목별 지출 집계표 & 그래프 -->
+      <!-- 2. 공통비용 집계 및 손익 반영 (8개 항목별 합계 + 월별·연도별·조회기간별 자동 집계) -->
       <div class="two-col-grid">
         <div class="soft-card">
           <div class="card-header">
-            <h3>📊 공통비용 항목별 지출 집계표 (선택기간 & 전체누적)</h3>
-            <span class="badge-unit">항목별 금액 및 비중 자동 계산</span>
+            <h3>📊 공통비용 8개 항목별 합계 및 총합계 (조회기간 · 연도별 · 전체)</h3>
+            <span class="badge-unit">주문 1건당 비용과 별도 집계</span>
           </div>
           <div class="table-responsive">
             <table class="sheet-table" id="tab5CommonCategoryTable">
               <thead>
                 <tr>
                   <th>No</th>
-                  <th>공통비용 항목명</th>
-                  <th class="num">선택기간 지출액 (원)</th>
-                  <th class="num">선택기간 비중</th>
-                  <th class="num">전체 누적 지출액 (원)</th>
-                  <th class="num">전체 누적 비중</th>
+                  <th>비용 항목 (8개 구분)</th>
+                  <th class="num">조회기간 건수</th>
+                  <th class="num">조회기간 합계 (원)</th>
+                  <th class="num">조회기간 비중</th>
+                  <th class="num">2026년 합계 (원)</th>
+                  <th class="num">2027년 합계 (원)</th>
+                  <th class="num">공통비용 총합계 (전체)</th>
+                  <th class="num">전체 비중</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -702,17 +735,75 @@
 
         <div class="soft-card">
           <div class="card-header">
-            <h3>📈 공통비용 항목별 지출 비중 및 금액 그래프</h3>
+            <h3>📈 공통비용 8개 항목별 지출 비중 및 금액 비교 그래프</h3>
             <span class="badge-unit">단위: 원 / %</span>
           </div>
           <div class="top5-inner-grid" style="align-items:center;">
-            <div class="chart-box-doughnut" style="height:240px;">
+            <div class="chart-box-doughnut" style="height:260px;">
               <canvas id="chartTab5CommonDoughnut"></canvas>
             </div>
-            <div class="chart-box-doughnut" style="height:240px;">
+            <div class="chart-box-doughnut" style="height:260px;">
               <canvas id="chartTab5CommonBar"></canvas>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- 월별 · 연도별 · 조회기간별 공통비용 자동 집계표 (발생일자 기준) -->
+      <div class="soft-card">
+        <div class="card-header">
+          <h3>🗓️ 발생일자 기준 월별 · 연도별 · 조회기간별 공통비용 자동 집계표 (8개 항목별 & 총합계)</h3>
+          <span class="badge-unit">발생일자를 기준으로 월별·연도별·조회기간별 8개 항목 합계와 공통비용 총합계가 자동 계산됩니다</span>
+        </div>
+        <div class="table-responsive">
+          <table class="sheet-table" id="tab5CommonMonthlyTable">
+            <thead>
+              <tr>
+                <th>구분 (월별 / 연도별 / 조회기간)</th>
+                <th class="num">종묘비</th>
+                <th class="num">무기질비료비</th>
+                <th class="num">유기질비료비</th>
+                <th class="num">농약비</th>
+                <th class="num">수도광열비</th>
+                <th class="num">기타재료비</th>
+                <th class="num">고용노동비</th>
+                <th class="num">기타</th>
+                <th class="num">공통비용 총합계 (원)</th>
+                <th class="num">입력 건수</th>
+              </tr>
+            </thead>
+            <tbody id="tab5CommonMonthlyTbody"></tbody>
+            <tfoot id="tab5CommonMonthlyTfoot"></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <hr class="section-divider" />
+
+      <!-- 3. 월별 목표매출 설정 (2026년 11월 ~ 2027년 10월) -->
+      <div class="soft-card">
+        <div class="card-header">
+          <h3>🎯 월별 목표매출 설정 (2026년 11월 ~ 2027년 10월)</h3>
+          <div class="header-right-tools">
+            <span class="badge-unit">노란색 셀 수정 가능</span>
+            <button type="button" class="btn btn-save btn-sm" onclick="triggerManualSave('월별 목표매출 설정이 저장되었습니다!')">💾 목표매출 저장</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="sheet-table" id="monthlyTargetsTable">
+            <thead>
+              <tr>
+                <th>대상 연월</th>
+                <th>적용 기간</th>
+                <th>총 일수</th>
+                <th class="num">월별 목표매출 (원)</th>
+                <th class="num">일할 목표매출 (원/일)</th>
+                <th class="num">조회기간 반영 목표매출</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
         </div>
       </div>
     </section>
@@ -747,14 +838,20 @@
               <p>• <code>주문건수에 따른 비용</code> = (10kg 미만 주문건수 × 10kg 미만 1건당 비용) + (10kg 이상 주문건수 × 10kg 이상 1건당 비용)</p>
             </div>
             <div class="guide-item">
-              <strong>2. 수수료, 총비용, 순이익, 순이익률 계산 공식</strong>
+              <strong>2. 수수료, 판매채널 비용, 순이익, 최종 순이익 계산 공식</strong>
               <p>• <code>매출액 기준 수수료</code> = 일일 매출액 × 해당 날짜의 채널 수수료율</p>
-              <p>• <code>총비용(총 지출)</code> = 매출액 기준 수수료 + 주문건수에 따른 비용 + 추가 비용</p>
-              <p>• <code>순이익</code> = 일일 매출액 − 총비용 &nbsp;|&nbsp; <code>순이익률</code> = 순이익 ÷ 일일 매출액 × 100</p>
+              <p>• <code>판매채널 비용(변동비)</code> = 매출액 기준 수수료 + 주문건수에 따른 비용 + 추가 비용</p>
+              <p>• <code>순이익(공통비 전)</code> = 일일 매출액 − 판매채널 비용 &nbsp;|&nbsp; <code>최종 순이익(공통비 후)</code> = 순이익(공통비 전) − 공통비용 총합계</p>
             </div>
             <div class="guide-item">
-              <strong>3. 목표매출 기간 (2026년 11월 ~ 2027년 10월) 및 합계 확인</strong>
-              <p>• [5. 목표매출·공통비용 설정] 시트에서 2026년 11월부터 2027년 10월까지 12개월 목표매출을 설정하며, 상단 배너와 표 하단에서 <strong>12개월 목표매출 총합계</strong>와 <strong>선택기간 목표매출 합계</strong>를 즉시 확인할 수 있습니다.</p>
+              <strong>3. 공통비용 8개 항목 입력 및 월별·연도별·조회기간별 자동 집계</strong>
+              <p>• <code>8개 비용 항목</code>: 종묘비, 무기질비료비, 유기질비료비, 농약비, 수도광열비, 기타재료비, 고용노동비, 기타 (드롭다운 선택)</p>
+              <p>• 한 행에 한 건씩 <strong>[발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고]</strong>를 입력하며, 같은 날짜와 같은 항목으로 여러 건 입력이 가능합니다. (<code>기타</code> 선택 시 상세 내역 입력 안내)</p>
+              <p>• 공통비용은 판매채널의 주문 1건당 비용과 <strong>별도로 관리</strong>되며, 발생일자 기준으로 월별·연도별·조회기간별 합계 및 손익에 자동 반영됩니다.</p>
+            </div>
+            <div class="guide-item">
+              <strong>4. 목표매출 기간 (2026년 11월 ~ 2027년 10월) 및 합계 확인</strong>
+              <p>• [5. 목표매출·공통비용 입력 시트]에서 2026년 11월부터 2027년 10월까지 12개월 목표매출을 설정하며, 상단 배너와 표 하단에서 <strong>12개월 목표매출 총합계</strong>와 <strong>선택기간 목표매출 합계</strong>를 즉시 확인할 수 있습니다.</p>
             </div>
           </div>
         </div>

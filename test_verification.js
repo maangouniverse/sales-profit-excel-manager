@@ -67,8 +67,18 @@ assert.strictEqual(mGong.totalCost, 289500);
 assert.strictEqual(mGong.netProfit, 1810500);
 console.log('✅ 4. 판매채널 [공판장] 등록 및 무게별 비용·순이익 자동계산 검증 완료');
 
-// 5. 공통비용 항목 확인
-assert.strictEqual(COMMON_COST_CATEGORIES.length, 5);
-console.log('✅ 5. 공통비용 5대 기본 항목 설정 확인 완료');
+// 5. 공통비용 8개 항목 확인
+assert.strictEqual(COMMON_COST_CATEGORIES.length, 8);
+assert.deepStrictEqual(COMMON_COST_CATEGORIES, [
+  '종묘비',
+  '무기질비료비',
+  '유기질비료비',
+  '농약비',
+  '수도광열비',
+  '기타재료비',
+  '고용노동비',
+  '기타'
+]);
+console.log('✅ 5. 공통비용 8대 항목(종묘비, 무기질비료비, 유기질비료비, 농약비, 수도광열비, 기타재료비, 고용노동비, 기타) 설정 확인 완료');
 
 console.log('=== [모든 검증 테스트 100% 통과!] ===');

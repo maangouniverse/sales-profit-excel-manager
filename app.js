@@ -1,7 +1,19 @@
+// 공통비용 8개 고정 항목 (드롭다운 선택용)
+const COMMON_COST_CATEGORIES = [
+  '종묘비',
+  '무기질비료비',
+  '유기질비료비',
+  '농약비',
+  '수도광열비',
+  '기타재료비',
+  '고용노동비',
+  '기타'
+];
+
 // 초기 기본 데이터 (예시 수치를 모두 비운 실사용 초기 상태: 2026.11 ~ 2027.10 기준)
 const INITIAL_STATE = {
   channels: ['농라', '스마트스토어', '카톡', '고흥몰', '남도장터', '로컬푸드', '공판장', '기타'],
-  commonCostCategories: ['월 광고선전비', '작업장/창고 임대료', '인건비/작업비', '공과금/통신/프로그램', '기타 공통고정비'],
+  commonCostCategories: [...COMMON_COST_CATEGORIES],
   targetMonths: [
     { idx: 1, ym: '2026-11', label: '26년 11월', start: '2026-11-01', end: '2026-11-30', days: 30, target: 0 },
     { idx: 2, ym: '2026-12', label: '26년 12월', start: '2026-12-01', end: '2026-12-31', days: 31, target: 0 },
@@ -68,7 +80,25 @@ Chart.register(doughnutPercentPlugin);
 function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      parsed.commonCostCategories = [...COMMON_COST_CATEGORIES];
+      if (Array.isArray(parsed.commonCosts)) {
+        parsed.commonCosts = parsed.commonCosts.map(c => {
+          const isValidCat = COMMON_COST_CATEGORIES.includes(c.category);
+          return {
+            ...c,
+            category: isValidCat ? c.category : '기타',
+            detail: c.detail !== undefined ? c.detail : (!isValidCat && c.category ? c.category : ''),
+            amount: Number(c.amount) || 0,
+            note: c.note || ''
+          };
+        });
+      } else {
+        parsed.commonCosts = [];
+      }
+      return parsed;
+    }
   } catch (e) {
     console.warn(e);
   }
@@ -168,6 +198,12 @@ function getActivePeriod() {
     const ymVal = document.getElementById('filterYm').value;
     if (ymVal === 'all') {
       return { start: '2026-11-01', end: '2027-10-31' };
+    }
+    if (ymVal === 'year-2026') {
+      return { start: '2026-01-01', end: '2026-12-31' };
+    }
+    if (ymVal === 'year-2027') {
+      return { start: '2027-01-01', end: '2027-12-31' };
     }
     const found = state.targetMonths.find(t => t.ym === ymVal);
     if (found) {
@@ -342,20 +378,9 @@ function renderAll() {
   attachCalendarPickers();
 }
 
-// 공통비용 항목별 집계 헬퍼 (기본 5대 항목 + 사용자가 새로 입력한 항목 모두 자동 포함)
+// 공통비용 8개 항목별 집계 헬퍼 (조회기간 / 연도별 / 전체누적)
 function getCommonCostCategoryStats(start, end) {
-  const defaultCats = state.commonCostCategories || [
-    '월 광고선전비',
-    '작업장/창고 임대료',
-    '인건비/작업비',
-    '공과금/통신/프로그램',
-    '기타 공통고정비'
-  ];
-  const catSet = new Set(defaultCats);
-  state.commonCosts.forEach(c => {
-    if (c.category && c.category.trim()) catSet.add(c.category.trim());
-  });
-  const categories = Array.from(catSet);
+  const categories = [...COMMON_COST_CATEGORIES];
 
   const totalPeriodCommon = state.commonCosts
     .filter(c => c.date >= start && c.date <= end)
@@ -364,15 +389,21 @@ function getCommonCostCategoryStats(start, end) {
     .reduce((a, b) => a + (Number(b.amount) || 0), 0);
 
   return categories.map(catName => {
-    const periodAmt = state.commonCosts
-      .filter(c => c.category === catName && c.date >= start && c.date <= end)
+    const catRows = state.commonCosts.filter(c => c.category === catName);
+    const periodRows = catRows.filter(c => c.date >= start && c.date <= end);
+    const periodCount = periodRows.length;
+    const periodAmt = periodRows.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+    const year2026Amt = catRows
+      .filter(c => String(c.date || '').startsWith('2026-'))
       .reduce((a, b) => a + (Number(b.amount) || 0), 0);
-    const allAmt = state.commonCosts
-      .filter(c => c.category === catName)
+    const year2027Amt = catRows
+      .filter(c => String(c.date || '').startsWith('2027-'))
       .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+    const allCount = catRows.length;
+    const allAmt = catRows.reduce((a, b) => a + (Number(b.amount) || 0), 0);
     const periodShare = totalPeriodCommon > 0 ? periodAmt / totalPeriodCommon : 0;
     const allShare = totalAllCommon > 0 ? allAmt / totalAllCommon : 0;
-    return { catName, periodAmt, periodShare, allAmt, allShare };
+    return { catName, periodCount, periodAmt, periodShare, year2026Amt, year2027Amt, allCount, allAmt, allShare };
   });
 }
 
@@ -514,37 +545,56 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
     }
   });
 
-  // 3) 월별 손익현황 (26년 11월 ~ 27년 10월, 실적자동계산2.png 스타일)
+  // 3) 월별·연도별 손익현황 (26년 11월 ~ 27년 10월, 채널비용과 공통비용 별도 관리 및 손익 반영)
   const mLabels = [];
   const mSales = [];
-  const mCosts = [];
-  const mProfits = [];
+  const mVarCosts = [];
+  const mCommonCosts = [];
+  const mFinalProfits = [];
 
   const mTbody = document.getElementById('dashboardMonthlyTbody');
   const mTfoot = document.getElementById('dashboardMonthlyTfoot');
   mTbody.innerHTML = '';
 
-  let sumTarget = 0, sumSales = 0, sumCost = 0, sumProfit = 0, sumOrd = 0;
+  let sumTarget = 0, sumSales = 0, sumCost = 0, sumProfit = 0, sumCommon = 0, sumFinalProfit = 0, sumOrd = 0;
+  let y26 = { target: 0, sales: 0, cost: 0, profit: 0, common: 0, finalP: 0, ord: 0 };
+  let y27 = { target: 0, sales: 0, cost: 0, profit: 0, common: 0, finalP: 0, ord: 0 };
 
   state.targetMonths.forEach(tm => {
     const rows = evaluatedSales.filter(r => r.isValid && r.date >= tm.start && r.date <= tm.end);
     const s = rows.reduce((a, b) => a + b.sales, 0);
     const c = rows.reduce((a, b) => a + b.totalCost, 0);
     const p = s - c;
+    const cc = state.commonCosts
+      .filter(x => x.date >= tm.start && x.date <= tm.end)
+      .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+    const finalP = p - cc;
     const ord = rows.reduce((a, b) => a + b.totalOrders, 0);
     const ach = tm.target > 0 ? s / tm.target : 0;
-    const mar = s > 0 ? p / s : 0;
+    const finalMar = s > 0 ? finalP / s : 0;
 
     mLabels.push(tm.label);
     mSales.push(s);
-    mCosts.push(c);
-    mProfits.push(p);
+    mVarCosts.push(c);
+    mCommonCosts.push(cc);
+    mFinalProfits.push(finalP);
 
     sumTarget += tm.target;
     sumSales += s;
     sumCost += c;
     sumProfit += p;
+    sumCommon += cc;
+    sumFinalProfit += finalP;
     sumOrd += ord;
+
+    const yBucket = tm.ym.startsWith('2026') ? y26 : y27;
+    yBucket.target += tm.target;
+    yBucket.sales += s;
+    yBucket.cost += c;
+    yBucket.profit += p;
+    yBucket.common += cc;
+    yBucket.finalP += finalP;
+    yBucket.ord += ord;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -552,23 +602,51 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
       <td data-label="목표매출" class="num">${fmtNum(tm.target)}</td>
       <td data-label="총 매출" class="num primary-metric"><strong>${s > 0 ? fmtNum(s) : '0'}</strong></td>
       <td data-label="달성률" class="num">${s > 0 ? fmtPct(ach, 1) : '0.0%'}</td>
-      <td data-label="총 지출(비용)" class="num">${c > 0 ? fmtNum(c) : '0'}</td>
-      <td data-label="순이익" class="num primary-metric ${p < 0 ? 'cell-negative' : p > 0 ? 'profit-pos' : ''}"><strong>${s > 0 || c > 0 ? fmtNum(p) : '0'}</strong></td>
-      <td data-label="이익률" class="num">${s > 0 ? fmtPct(mar, 2) : '0.00%'}</td>
+      <td data-label="채널 비용(건당·수수료)" class="num">${c > 0 ? fmtNum(c) : '0'}</td>
+      <td data-label="순이익(공통비 전)" class="num ${p < 0 ? 'cell-negative' : p > 0 ? 'profit-pos' : ''}">${s > 0 || c > 0 ? fmtNum(p) : '0'}</td>
+      <td data-label="공통비용(8개 항목)" class="num">${cc > 0 ? fmtNum(cc) : '0'}</td>
+      <td data-label="최종 순이익(공통비 후)" class="num primary-metric ${finalP < 0 ? 'cell-negative' : finalP > 0 ? 'profit-pos' : ''}"><strong>${s > 0 || c > 0 || cc > 0 ? fmtNum(finalP) : '0'}</strong></td>
+      <td data-label="최종 이익률" class="num">${s > 0 ? fmtPct(finalMar, 2) : '0.00%'}</td>
       <td data-label="주문건수" class="num">${ord > 0 ? fmtNum(ord) + '건' : '0건'}</td>
     `;
     mTbody.appendChild(tr);
   });
 
   mTfoot.innerHTML = `
+    <tr class="subtotal-row">
+      <td data-label="구분" class="card-title-cell">2026년 합계 (11~12월)</td>
+      <td data-label="목표매출" class="num">${fmtNum(y26.target)}</td>
+      <td data-label="총 매출" class="num">${fmtNum(y26.sales)}</td>
+      <td data-label="달성률" class="num">${fmtPct(y26.target > 0 ? y26.sales / y26.target : 0, 1)}</td>
+      <td data-label="채널 비용" class="num">${fmtNum(y26.cost)}</td>
+      <td data-label="순이익(공통비 전)" class="num ${y26.profit < 0 ? 'cell-negative' : ''}">${fmtNum(y26.profit)}</td>
+      <td data-label="공통비용" class="num">${fmtNum(y26.common)}</td>
+      <td data-label="최종 순이익" class="num ${y26.finalP < 0 ? 'cell-negative' : ''}">${fmtNum(y26.finalP)}</td>
+      <td data-label="최종 이익률" class="num">${fmtPct(y26.sales > 0 ? y26.finalP / y26.sales : 0, 2)}</td>
+      <td data-label="주문건수" class="num">${fmtNum(y26.ord)}건</td>
+    </tr>
+    <tr class="subtotal-row">
+      <td data-label="구분" class="card-title-cell">2027년 합계 (1~10월)</td>
+      <td data-label="목표매출" class="num">${fmtNum(y27.target)}</td>
+      <td data-label="총 매출" class="num">${fmtNum(y27.sales)}</td>
+      <td data-label="달성률" class="num">${fmtPct(y27.target > 0 ? y27.sales / y27.target : 0, 1)}</td>
+      <td data-label="채널 비용" class="num">${fmtNum(y27.cost)}</td>
+      <td data-label="순이익(공통비 전)" class="num ${y27.profit < 0 ? 'cell-negative' : ''}">${fmtNum(y27.profit)}</td>
+      <td data-label="공통비용" class="num">${fmtNum(y27.common)}</td>
+      <td data-label="최종 순이익" class="num ${y27.finalP < 0 ? 'cell-negative' : ''}">${fmtNum(y27.finalP)}</td>
+      <td data-label="최종 이익률" class="num">${fmtPct(y27.sales > 0 ? y27.finalP / y27.sales : 0, 2)}</td>
+      <td data-label="주문건수" class="num">${fmtNum(y27.ord)}건</td>
+    </tr>
     <tr>
-      <td data-label="구분" class="card-title-cell">12개월 합계</td>
+      <td data-label="구분" class="card-title-cell">12개월 총합계</td>
       <td data-label="목표매출 합계" class="num">${fmtNum(sumTarget)}</td>
       <td data-label="총 매출 합계" class="num">${fmtNum(sumSales)}</td>
       <td data-label="달성률" class="num">${fmtPct(sumTarget > 0 ? sumSales / sumTarget : 0, 1)}</td>
-      <td data-label="총 지출 합계" class="num">${fmtNum(sumCost)}</td>
-      <td data-label="순이익 합계" class="num ${sumProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sumProfit)}</td>
-      <td data-label="이익률" class="num">${fmtPct(sumSales > 0 ? sumProfit / sumSales : 0, 2)}</td>
+      <td data-label="채널 비용 합계" class="num">${fmtNum(sumCost)}</td>
+      <td data-label="순이익(공통비 전)" class="num ${sumProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sumProfit)}</td>
+      <td data-label="공통비용 총합계" class="num">${fmtNum(sumCommon)}</td>
+      <td data-label="최종 순이익 합계" class="num ${sumFinalProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sumFinalProfit)}</td>
+      <td data-label="최종 이익률" class="num">${fmtPct(sumSales > 0 ? sumFinalProfit / sumSales : 0, 2)}</td>
       <td data-label="주문건수 합계" class="num">${fmtNum(sumOrd)}건</td>
     </tr>
   `;
@@ -579,8 +657,9 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
       labels: mLabels,
       datasets: [
         { label: '총 매출', data: mSales, backgroundColor: '#2b4cbe', borderRadius: 3 },
-        { label: '총 지출(비용)', data: mCosts, backgroundColor: '#92add0', borderRadius: 3 },
-        { label: '순이익', data: mProfits, backgroundColor: '#c5d185', borderRadius: 3 }
+        { label: '채널 비용(주문건당+수수료)', data: mVarCosts, backgroundColor: '#92add0', borderRadius: 3 },
+        { label: '공통비용(8개 항목)', data: mCommonCosts, backgroundColor: '#f2a68d', borderRadius: 3 },
+        { label: '최종 순이익(공통비 후)', data: mFinalProfits, backgroundColor: '#c5d185', borderRadius: 3 }
       ]
     },
     options: {
@@ -591,14 +670,13 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
     }
   });
 
-  // 4) 공통비용 항목별 지출 비중 표 & 도넛/막대 그래프 (실적자동계산2.png 우측 하단 '항목별 지출 비중' 스타일)
+  // 4) 공통비용 8개 항목별 지출 비중 표 & 도넛/막대 그래프
   const ccStats = getCommonCostCategoryStats(start, end);
-  const ccSorted = [...ccStats].sort((a, b) => b.periodAmt - a.periodAmt);
   const ccTbody = document.querySelector('#dashboardCommonCostTable tbody');
   const ccTfoot = document.querySelector('#dashboardCommonCostTable tfoot');
   if (ccTbody && ccTfoot) {
     ccTbody.innerHTML = '';
-    ccSorted.forEach((item, idx) => {
+    ccStats.forEach((item, idx) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${idx + 1}</strong></td>
@@ -610,7 +688,7 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
     });
     ccTfoot.innerHTML = `
       <tr>
-        <td colspan="2"><strong>선택기간 공통비용 합계</strong></td>
+        <td colspan="2"><strong>공통비용 총합계 (조회기간)</strong></td>
         <td class="num"><strong>${fmtNum(periodCommonCost)}</strong></td>
         <td class="num"><strong>${periodCommonCost > 0 ? '100.0%' : '0.0%'}</strong></td>
       </tr>
@@ -620,9 +698,9 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
   updateChart('chartCommonCostShare', {
     type: 'doughnut',
     data: {
-      labels: ccSorted.map(x => `${x.catName} (${fmtPct(x.periodShare, 1)})`),
+      labels: ccStats.map(x => `${x.catName} (${fmtPct(x.periodShare, 1)})`),
       datasets: [{
-        data: ccSorted.map(x => x.periodAmt),
+        data: ccStats.map(x => x.periodAmt),
         backgroundColor: palette,
         borderWidth: 1,
         borderColor: '#ffffff'
@@ -972,11 +1050,65 @@ function renderAnalysisTab(periodRows, totalSales, totalOrders, periodCommonCost
   });
 }
 
+function syncCommonEtcGuide() {
+  const catSel = document.getElementById('inCommonCat');
+  const detailIn = document.getElementById('inCommonDetail');
+  const detailLabel = document.getElementById('inCommonDetailLabel');
+  const guideBanner = document.getElementById('commonEtcGuideBanner');
+  if (!catSel || !detailIn || !detailLabel || !guideBanner) return;
+
+  const isEtc = catSel.value === '기타';
+  const hasDetail = detailIn.value.trim().length > 0;
+
+  if (isEtc) {
+    guideBanner.style.display = 'block';
+    detailLabel.innerHTML = `상세 내역 <span style="color:#dc2626;">* (‘기타’ 선택 시 입력 필수)</span>`;
+    detailIn.placeholder = "⚠️ '기타' 선택 시 상세 내역을 꼭 입력해 주세요";
+    if (!hasDetail) {
+      detailIn.classList.add('etc-input-highlight');
+    } else {
+      detailIn.classList.remove('etc-input-highlight');
+    }
+  } else {
+    guideBanner.style.display = 'none';
+    detailLabel.textContent = '상세 내역';
+    detailIn.placeholder = '구체적인 품목이나 지출 내역 입력';
+    detailIn.classList.remove('etc-input-highlight');
+  }
+}
+
 function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, periodCommonCost) {
+  const sumAllCommon = state.commonCosts.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+  const sum2026Common = state.commonCosts
+    .filter(c => String(c.date || '').startsWith('2026-'))
+    .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+  const sum2027Common = state.commonCosts
+    .filter(c => String(c.date || '').startsWith('2027-'))
+    .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+  const periodCommonCount = state.commonCosts.filter(c => c.date >= start && c.date <= end).length;
+
   document.getElementById('tab5TotalTargetSum').textContent = fmtWon(totalAnnualTarget);
   document.getElementById('tab5AppliedTargetSum').textContent = fmtWon(periodTarget);
   document.getElementById('tab5PeriodCommonSum').textContent = fmtWon(periodCommonCost);
 
+  const periodCountEl = document.getElementById('tab5PeriodCommonCountSub');
+  if (periodCountEl) {
+    periodCountEl.textContent = `조회기간 ${fmtNum(periodCommonCount)}건 (주문 1건당 비용과 별도)`;
+  }
+  const yearlyCommonEl = document.getElementById('tab5YearlyCommonSum');
+  if (yearlyCommonEl) {
+    yearlyCommonEl.textContent = `26년 ${fmtWon(sum2026Common)} / 27년 ${fmtWon(sum2027Common)}`;
+  }
+  const totalCommonEl = document.getElementById('tab5TotalCommonSum');
+  if (totalCommonEl) {
+    totalCommonEl.textContent = fmtWon(sumAllCommon);
+  }
+  const totalCommonCountEl = document.getElementById('tab5TotalCommonCountSub');
+  if (totalCommonCountEl) {
+    totalCommonCountEl.textContent = `8개 항목 총 ${fmtNum(state.commonCosts.length)}건 입력됨`;
+  }
+
+  // 월별 목표매출 표
   const tTbody = document.querySelector('#monthlyTargetsTable tbody');
   const tTfoot = document.querySelector('#monthlyTargetsTable tfoot');
   tTbody.innerHTML = '';
@@ -1009,36 +1141,64 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
     </tr>
   `;
 
-  // 공통비용 표 (인라인 수정 및 저장/삭제 지원)
+  // 1) 공통비용 입력 시트 테이블 (발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고)
   const cTbody = document.querySelector('#commonCostsTable tbody');
   const cTfoot = document.querySelector('#commonCostsTable tfoot');
   cTbody.innerHTML = '';
 
-  let sumAllCommon = 0;
-  if (state.commonCosts.length === 0) {
+  const filterChk = document.getElementById('chkFilterCommonByPeriod');
+  const onlyPeriodCommon = filterChk ? filterChk.checked : false;
+  const visibleCommonRows = onlyPeriodCommon
+    ? state.commonCosts.filter(c => c.date >= start && c.date <= end)
+    : state.commonCosts;
+
+  if (visibleCommonRows.length === 0) {
     const emptyTr = document.createElement('tr');
     emptyTr.className = 'empty-table-row';
-    emptyTr.innerHTML = `<td colspan="6" class="empty-row-cell" style="text-align:center; padding:20px; color:#64748b;">등록된 공통비용 내역이 없습니다. 위 입력 칸에서 공통비용을 추가해 주세요.</td>`;
+    emptyTr.innerHTML = `<td colspan="8" class="empty-row-cell" style="text-align:center; padding:24px; color:#64748b;">등록된 공통비용 내역이 없습니다. 상단 입력 칸에서 [발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고]를 입력해 추가해 주세요.</td>`;
     cTbody.appendChild(emptyTr);
   }
-  state.commonCosts.forEach(c => {
+
+  let visibleSum = 0;
+  visibleCommonRows.forEach((c, idx) => {
     const inPeriod = c.date >= start && c.date <= end;
-    sumAllCommon += c.amount;
+    const amt = Number(c.amount) || 0;
+    visibleSum += amt;
+    const dFormatted = formatKoreanDateWithDay(c.date);
+    const ymStr = c.date ? c.date.slice(0, 7) : '-';
+    const isEtcEmpty = c.category === '기타' && !(c.detail || '').trim();
+
+    const catOpts = COMMON_COST_CATEGORIES
+      .map(cat => `<option value="${escapeHtmlAttr(cat)}" ${cat === c.category ? 'selected' : ''}>${escapeHtmlAttr(cat)}</option>`)
+      .join('');
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td data-label="📅 지출/귀속일자" class="card-title-cell">
-        <input type="date" class="table-inline-date date-clickable" value="${c.date}" onchange="updateCommonField(${c.id}, 'date', this.value)" />
+      <td data-label="No" class="card-title-cell"><strong>#${idx + 1}</strong></td>
+      <td data-label="발생일자">
+        <span class="cell-value-group">
+          <input type="date" class="table-inline-date date-clickable" value="${c.date}" onchange="updateCommonField(${c.id}, 'date', this.value)" />
+          <span class="date-day-badge ${dFormatted.cls}">(${dFormatted.dayChar})</span>
+        </span>
       </td>
-      <td data-label="공통비용 항목" class="primary-metric">
-        <input type="text" list="commonCostCatList" class="table-inline-text" style="width:140px;font-weight:700;" value="${escapeHtmlAttr(c.category)}" onchange="updateCommonField(${c.id}, 'category', this.value)" />
+      <td data-label="비용 항목" class="primary-metric">
+        <select class="table-inline-select" style="width:130px;" onchange="updateCommonField(${c.id}, 'category', this.value)">
+          ${catOpts}
+        </select>
+      </td>
+      <td data-label="상세 내역" style="text-align:left;">
+        <input type="text" class="table-inline-text ${isEtcEmpty ? 'etc-input-highlight' : ''}" style="width:210px;" value="${escapeHtmlAttr(c.detail || '')}" onchange="updateCommonField(${c.id}, 'detail', this.value)" placeholder="${c.category === '기타' ? "⚠️ '기타' 상세 내역을 입력해 주세요" : '상세 내역 입력'}" />
+        ${isEtcEmpty ? `<span class="etc-inline-hint">⚠️ ‘기타’를 선택한 경우 상세 내역을 입력해 주세요</span>` : ''}
       </td>
       <td data-label="금액 (원)" class="num primary-metric">
-        <input type="number" class="table-inline-input" style="width:105px;" min="0" step="1000" value="${c.amount}" onchange="updateCommonField(${c.id}, 'amount', Math.max(0, Number(this.value)||0))" />
+        <input type="number" class="table-inline-input" style="width:115px;" min="0" step="100" value="${amt}" onchange="updateCommonField(${c.id}, 'amount', Math.max(0, Number(this.value)||0))" />
       </td>
-      <td data-label="조회기간 포함">${inPeriod ? '✅ 포함' : '제외'}</td>
-      <td data-label="비고">
-        <input type="text" class="table-inline-text" style="width:165px;" value="${escapeHtmlAttr(c.note)}" onchange="updateCommonField(${c.id}, 'note', this.value)" placeholder="비고 입력" />
+      <td data-label="비고" style="text-align:left;">
+        <input type="text" class="table-inline-text" style="width:170px;" value="${escapeHtmlAttr(c.note || '')}" onchange="updateCommonField(${c.id}, 'note', this.value)" placeholder="비고 입력" />
+      </td>
+      <td data-label="귀속연월 · 조회기간 반영">
+        <span style="font-weight:700; color:#334155;">${ymStr}</span>
+        <span style="margin-left:4px; color:${inPeriod ? '#0f683c' : '#94a3b8'}; font-weight:700;">(${inPeriod ? '✅ 조회기간 포함' : '기간 외'})</span>
       </td>
       <td data-label="관리">
         <div class="row-action-group">
@@ -1052,13 +1212,14 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
 
   cTfoot.innerHTML = `
     <tr>
-      <td colspan="2" data-label="구분" class="card-title-cell">공통비용 합계</td>
-      <td data-label="전체 누적 합계" class="num">전체: ${fmtWon(sumAllCommon)}</td>
-      <td colspan="3" data-label="현재 조회기간 반영액">현재 조회기간 반영액: ${fmtWon(periodCommonCost)}</td>
+      <td colspan="4" data-label="구분" class="card-title-cell">공통비용 총합계 (표시 ${visibleCommonRows.length}건 / 전체 ${state.commonCosts.length}건)</td>
+      <td data-label="표시 내역 합계" class="num">${fmtWon(visibleSum)}</td>
+      <td data-label="연도별 합계">2026년: ${fmtWon(sum2026Common)} / 2027년: ${fmtWon(sum2027Common)}</td>
+      <td colspan="2" data-label="조회기간 및 전체 총합계">조회기간: <strong>${fmtWon(periodCommonCost)}</strong> | 전체 총합계: <strong>${fmtWon(sumAllCommon)}</strong></td>
     </tr>
   `;
 
-  // 시트 5 하단: 공통비용 항목별 지출 집계표 & 그래프 업데이트
+  // 2) 공통비용 8개 항목별 합계 및 총합계 집계표 & 그래프 업데이트
   const ccStats = getCommonCostCategoryStats(start, end);
   const catTbody = document.querySelector('#tab5CommonCategoryTable tbody');
   const catTfoot = document.querySelector('#tab5CommonCategoryTable tfoot');
@@ -1068,21 +1229,115 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td data-label="No">${idx + 1}</td>
-        <td data-label="공통비용 항목명" class="card-title-cell"><strong>${st.catName}</strong></td>
-        <td data-label="선택기간 지출액 (원)" class="num primary-metric"><strong>${fmtWon(st.periodAmt)}</strong></td>
-        <td data-label="선택기간 비중" class="num">${fmtPct(st.periodShare, 1)}</td>
-        <td data-label="전체 누적 지출액 (원)" class="num">${fmtWon(st.allAmt)}</td>
-        <td data-label="전체 누적 비중" class="num">${fmtPct(st.allShare, 1)}</td>
+        <td data-label="비용 항목 (8개 구분)" class="card-title-cell"><strong>${st.catName}</strong></td>
+        <td data-label="조회기간 건수" class="num">${fmtNum(st.periodCount)}건</td>
+        <td data-label="조회기간 합계 (원)" class="num primary-metric"><strong>${fmtWon(st.periodAmt)}</strong></td>
+        <td data-label="조회기간 비중" class="num">${fmtPct(st.periodShare, 1)}</td>
+        <td data-label="2026년 합계 (원)" class="num">${fmtWon(st.year2026Amt)}</td>
+        <td data-label="2027년 합계 (원)" class="num">${fmtWon(st.year2027Amt)}</td>
+        <td data-label="공통비용 총합계 (전체)" class="num primary-metric"><strong>${fmtWon(st.allAmt)}</strong></td>
+        <td data-label="전체 비중" class="num">${fmtPct(st.allShare, 1)}</td>
       `;
       catTbody.appendChild(tr);
     });
     catTfoot.innerHTML = `
       <tr>
-        <td colspan="2" data-label="구분" class="card-title-cell">공통비용 항목별 합계 (${ccStats.length}개 항목)</td>
-        <td data-label="선택기간 합계" class="num">${fmtWon(periodCommonCost)}</td>
-        <td data-label="선택기간 비중" class="num">${periodCommonCost > 0 ? '100.0%' : '0.0%'}</td>
-        <td data-label="전체 누적 합계" class="num">${fmtWon(sumAllCommon)}</td>
-        <td data-label="전체 누적 비중" class="num">${sumAllCommon > 0 ? '100.0%' : '0.0%'}</td>
+        <td colspan="2" data-label="구분" class="card-title-cell">공통비용 총합계 (8개 항목 합계)</td>
+        <td data-label="조회기간 총건수" class="num">${fmtNum(periodCommonCount)}건</td>
+        <td data-label="조회기간 총합계" class="num">${fmtWon(periodCommonCost)}</td>
+        <td data-label="조회기간 비중" class="num">${periodCommonCost > 0 ? '100.0%' : '0.0%'}</td>
+        <td data-label="2026년 총합계" class="num">${fmtWon(sum2026Common)}</td>
+        <td data-label="2027년 총합계" class="num">${fmtWon(sum2027Common)}</td>
+        <td data-label="공통비용 총합계(전체)" class="num">${fmtWon(sumAllCommon)}</td>
+        <td data-label="전체 비중" class="num">${sumAllCommon > 0 ? '100.0%' : '0.0%'}</td>
+      </tr>
+    `;
+  }
+
+  // 3) 발생일자 기준 월별 · 연도별 · 조회기간별 공통비용 자동 집계표
+  const monthlyTbody = document.getElementById('tab5CommonMonthlyTbody');
+  const monthlyTfoot = document.getElementById('tab5CommonMonthlyTfoot');
+  if (monthlyTbody && monthlyTfoot) {
+    monthlyTbody.innerHTML = '';
+
+    // 기본 12개월(2026-11 ~ 2027-10) + 그 외 발생월이 있을 경우 자동 추가
+    const monthMap = new Map();
+    state.targetMonths.forEach(tm => {
+      monthMap.set(tm.ym, tm.label);
+    });
+    state.commonCosts.forEach(c => {
+      if (c.date && c.date.length >= 7) {
+        const ym = c.date.slice(0, 7);
+        if (!monthMap.has(ym)) {
+          const [y, m] = ym.split('-');
+          monthMap.set(ym, `${String(y).slice(2)}년 ${Number(m)}월`);
+        }
+      }
+    });
+
+    const sortedYmList = Array.from(monthMap.keys()).sort();
+
+    const buildCatCells = (rowsForGroup) => {
+      let rowTotal = 0;
+      const cellsHtml = COMMON_COST_CATEGORIES.map(catName => {
+        const amt = rowsForGroup
+          .filter(c => c.category === catName)
+          .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+        rowTotal += amt;
+        return `<td data-label="${catName}" class="num">${amt > 0 ? fmtNum(amt) : '0'}</td>`;
+      }).join('');
+      return { cellsHtml, rowTotal, count: rowsForGroup.length };
+    };
+
+    sortedYmList.forEach(ym => {
+      const label = monthMap.get(ym);
+      const mRows = state.commonCosts.filter(c => String(c.date || '').slice(0, 7) === ym);
+      const { cellsHtml, rowTotal, count } = buildCatCells(mRows);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td data-label="구분 (월별)" class="card-title-cell"><strong>${label}</strong> <span style="color:#888; font-size:11.5px;">(${ym})</span></td>
+        ${cellsHtml}
+        <td data-label="공통비용 총합계 (원)" class="num primary-metric"><strong>${fmtWon(rowTotal)}</strong></td>
+        <td data-label="입력 건수" class="num">${fmtNum(count)}건</td>
+      `;
+      monthlyTbody.appendChild(tr);
+    });
+
+    const rows2026 = state.commonCosts.filter(c => String(c.date || '').startsWith('2026-'));
+    const rows2027 = state.commonCosts.filter(c => String(c.date || '').startsWith('2027-'));
+    const rowsPeriod = state.commonCosts.filter(c => c.date >= start && c.date <= end);
+    const rowsAll = state.commonCosts;
+
+    const sum26 = buildCatCells(rows2026);
+    const sum27 = buildCatCells(rows2027);
+    const sumPer = buildCatCells(rowsPeriod);
+    const sumAll = buildCatCells(rowsAll);
+
+    monthlyTfoot.innerHTML = `
+      <tr class="subtotal-row">
+        <td data-label="구분" class="card-title-cell">📆 2026년 연도별 합계</td>
+        ${sum26.cellsHtml}
+        <td data-label="2026년 총합계" class="num"><strong>${fmtWon(sum26.rowTotal)}</strong></td>
+        <td data-label="2026년 건수" class="num">${fmtNum(sum26.count)}건</td>
+      </tr>
+      <tr class="subtotal-row">
+        <td data-label="구분" class="card-title-cell">📆 2027년 연도별 합계</td>
+        ${sum27.cellsHtml}
+        <td data-label="2027년 총합계" class="num"><strong>${fmtWon(sum27.rowTotal)}</strong></td>
+        <td data-label="2027년 건수" class="num">${fmtNum(sum27.count)}건</td>
+      </tr>
+      <tr class="period-highlight-row">
+        <td data-label="구분" class="card-title-cell">📅 현재 조회기간 합계 (${start} ~ ${end})</td>
+        ${sumPer.cellsHtml}
+        <td data-label="조회기간 총합계" class="num"><strong>${fmtWon(sumPer.rowTotal)}</strong></td>
+        <td data-label="조회기간 건수" class="num">${fmtNum(sumPer.count)}건</td>
+      </tr>
+      <tr>
+        <td data-label="구분" class="card-title-cell">🏢 공통비용 총합계 (전체 누적)</td>
+        ${sumAll.cellsHtml}
+        <td data-label="공통비용 총합계" class="num"><strong>${fmtWon(sumAll.rowTotal)}</strong></td>
+        <td data-label="총 입력 건수" class="num">${fmtNum(sumAll.count)}건</td>
       </tr>
     `;
   }
@@ -1114,8 +1369,8 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
     data: {
       labels: ccStats.map(x => x.catName),
       datasets: [
-        { label: '선택기간 지출액', data: ccStats.map(x => x.periodAmt), backgroundColor: '#2b4cbe', borderRadius: 3 },
-        { label: '전체 누적 지출액', data: ccStats.map(x => x.allAmt), backgroundColor: '#92add0', borderRadius: 3 }
+        { label: '조회기간 합계', data: ccStats.map(x => x.periodAmt), backgroundColor: '#2b4cbe', borderRadius: 3 },
+        { label: '전체 총합계', data: ccStats.map(x => x.allAmt), backgroundColor: '#92add0', borderRadius: 3 }
       ]
     },
     options: {
@@ -1128,6 +1383,8 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
       }
     }
   });
+
+  syncCommonEtcGuide();
 }
 
 function renderMasterSelectsAndLists() {
@@ -1221,7 +1478,11 @@ window.updateCommonField = function(id, field, val) {
   const target = state.commonCosts.find(c => c.id === id);
   if (target) {
     target[field] = val;
-    saveState('✅ 공통비용 수정사항이 저장되었습니다.');
+    if (field === 'category' && val === '기타' && !(target.detail || '').trim()) {
+      saveState("💡 '기타' 항목을 선택하셨습니다. [상세 내역]을 입력해 주세요.");
+    } else {
+      saveState('✅ 공통비용 수정사항이 저장되었습니다.');
+    }
     renderAll();
   }
 };
@@ -1257,10 +1518,25 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAll();
   });
 
-  ['filterYm', 'filterStartDate', 'filterEndDate', 'chkFilterDailyByPeriod', 'analysisSortBy', 'analysisAllocRule'].forEach(id => {
+  ['filterYm', 'filterStartDate', 'filterEndDate', 'chkFilterDailyByPeriod', 'chkFilterCommonByPeriod', 'analysisSortBy', 'analysisAllocRule'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', renderAll);
   });
+
+  // 공통비용 '기타' 선택 시 상세 내역 입력 안내 연동
+  const inCommonCatEl = document.getElementById('inCommonCat');
+  const inCommonDetailEl = document.getElementById('inCommonDetail');
+  if (inCommonCatEl) {
+    inCommonCatEl.addEventListener('change', () => {
+      syncCommonEtcGuide();
+      if (inCommonCatEl.value === '기타' && inCommonDetailEl) {
+        inCommonDetailEl.focus();
+      }
+    });
+  }
+  if (inCommonDetailEl) {
+    inCommonDetailEl.addEventListener('input', syncCommonEtcGuide);
+  }
 
   // 전체 데이터 초기화
   document.getElementById('btnResetSample').addEventListener('click', () => {
@@ -1315,21 +1591,36 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inRateNote').value = '';
   });
 
-  // 공통비용 추가 폼
+  // 공통비용 추가 폼 (8개 항목 드롭다운 + 같은 날짜/항목 복수 입력 + '기타' 상세 내역 안내)
   document.getElementById('addCommonCostForm').addEventListener('submit', e => {
     e.preventDefault();
+    const dateVal = document.getElementById('inCommonDate').value;
+    const catVal = document.getElementById('inCommonCat').value;
+    const detailEl = document.getElementById('inCommonDetail');
+    const detailVal = (detailEl ? detailEl.value : '').trim();
+    const amtVal = Number(document.getElementById('inCommonAmt').value) || 0;
+    const noteVal = document.getElementById('inCommonNote').value.trim();
+
+    if (catVal === '기타' && !detailVal) {
+      syncCommonEtcGuide();
+      alert("비용 항목을 ‘기타’로 선택한 경우 [상세 내역]을 입력해 주세요.");
+      if (detailEl) detailEl.focus();
+      return;
+    }
+
     state.commonCosts.push({
-      id: Date.now(),
-      date: document.getElementById('inCommonDate').value,
-      category: document.getElementById('inCommonCat').value,
-      amount: Number(document.getElementById('inCommonAmt').value) || 0,
-      note: document.getElementById('inCommonNote').value
+      id: Date.now() + Math.floor(Math.random() * 10000),
+      date: dateVal,
+      category: catVal,
+      detail: detailVal,
+      amount: amtVal,
+      note: noteVal
     });
     saveState('➕ 새로운 공통비용 내역이 추가 및 저장되었습니다!');
-    renderAll();
-    document.getElementById('inCommonCat').value = '';
+    if (detailEl) detailEl.value = '';
     document.getElementById('inCommonAmt').value = '';
     document.getElementById('inCommonNote').value = '';
+    renderAll();
   });
 
   // 판매채널 마스터 추가
