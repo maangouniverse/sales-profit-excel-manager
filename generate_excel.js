@@ -297,7 +297,7 @@ function buildSheet1() {
   sh.setCell(39, 10, { v: '합계', s: 16 });
   sh.setCell(39, 11, { f: 'SUM(K31:K38)', v: periodOrders, s: 17 });
   sh.setCell(39, 12, { f: 'SUM(L31:L38)', v: periodActualSales, s: 17 });
-  sh.setCell(39, 13, { f: 'IFERROR(SUM(M31:M38),0)', v: 1, s: 18 });
+  sh.setCell(39, 13, { f: 'IFERROR(SUM(M31:M38),0)', v: periodActualSales > 0 ? 1 : 0, s: 18 });
   sh.setCell(39, 14, { f: 'SUM(N31:N38)', v: periodNetProfit, s: 17 });
   sh.setCell(39, 15, { f: 'IFERROR(N39/L39,0)', v: periodMargin, s: 18 });
 
@@ -887,7 +887,7 @@ function buildSheet4() {
   sh.setCell(16, 5, { f: 'SUM(E8:E15)', v: periodOrdersOver10, s: 17 });
   sh.setCell(16, 6, { f: 'SUM(F8:F15)', v: periodOrders, s: 17 });
   sh.setCell(16, 7, { f: 'SUM(G8:G15)', v: periodActualSales, s: 17 });
-  sh.setCell(16, 8, { f: 'IFERROR(SUM(H8:H15),0)', v: 1, s: 18 });
+  sh.setCell(16, 8, { f: 'IFERROR(SUM(H8:H15),0)', v: periodActualSales > 0 ? 1 : 0, s: 18 });
   sh.setCell(16, 9, { f: 'SUM(I8:I15)', v: periodFee, s: 17 });
   sh.setCell(16, 10, { f: 'SUM(J8:J15)', v: periodOrderCost, s: 17 });
   sh.setCell(16, 11, { f: 'SUM(K8:K15)', v: periodExtraCost, s: 17 });

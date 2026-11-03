@@ -21,194 +21,39 @@ const COMMON_COST_CATEGORIES = [
   '기타 공통고정비'
 ];
 
-// 2. 목표설정 기간: 2026년 11월 ~ 2027년 10월 (12개월)
+// 2. 목표설정 기간: 2026년 11월 ~ 2027년 10월 (12개월, 실사용을 위해 예시 수치 0원 초기화)
 const TARGET_MONTHS = [
-  { idx: 1, ym: '2026-11', label: '26년 11월', year: 2026, month: 11, start: '2026-11-01', end: '2026-11-30', days: 30, target: 12000000 },
-  { idx: 2, ym: '2026-12', label: '26년 12월', year: 2026, month: 12, start: '2026-12-01', end: '2026-12-31', days: 31, target: 15000000 },
-  { idx: 3, ym: '2027-01', label: '27년 1월',  year: 2027, month: 1,  start: '2027-01-01', end: '2027-01-31', days: 31, target: 18000000 },
-  { idx: 4, ym: '2027-02', label: '27년 2월',  year: 2027, month: 2,  start: '2027-02-01', end: '2027-02-28', days: 28, target: 14000000 },
-  { idx: 5, ym: '2027-03', label: '27년 3월',  year: 2027, month: 3,  start: '2027-03-01', end: '2027-03-31', days: 31, target: 10000000 },
-  { idx: 6, ym: '2027-04', label: '27년 4월',  year: 2027, month: 4,  start: '2027-04-01', end: '2027-04-30', days: 30, target: 9000000 },
-  { idx: 7, ym: '2027-05', label: '27년 5월',  year: 2027, month: 5,  start: '2027-05-01', end: '2027-05-31', days: 31, target: 11000000 },
-  { idx: 8, ym: '2027-06', label: '27년 6월',  year: 2027, month: 6,  start: '2027-06-01', end: '2027-06-30', days: 30, target: 8000000 },
-  { idx: 9, ym: '2027-07', label: '27년 7월',  year: 2027, month: 7,  start: '2027-07-01', end: '2027-07-31', days: 31, target: 7000000 },
-  { idx: 10, ym: '2027-08', label: '27년 8월', year: 2027, month: 8,  start: '2027-08-01', end: '2027-08-31', days: 31, target: 9000000 },
-  { idx: 11, ym: '2027-09', label: '27년 9월', year: 2027, month: 9,  start: '2027-09-01', end: '2027-09-30', days: 30, target: 16000000 },
-  { idx: 12, ym: '2027-10', label: '27년 10월', year: 2027, month: 10, start: '2027-10-01', end: '2027-10-31', days: 31, target: 11000000 }
+  { idx: 1, ym: '2026-11', label: '26년 11월', year: 2026, month: 11, start: '2026-11-01', end: '2026-11-30', days: 30, target: 0 },
+  { idx: 2, ym: '2026-12', label: '26년 12월', year: 2026, month: 12, start: '2026-12-01', end: '2026-12-31', days: 31, target: 0 },
+  { idx: 3, ym: '2027-01', label: '27년 1월',  year: 2027, month: 1,  start: '2027-01-01', end: '2027-01-31', days: 31, target: 0 },
+  { idx: 4, ym: '2027-02', label: '27년 2월',  year: 2027, month: 2,  start: '2027-02-01', end: '2027-02-28', days: 28, target: 0 },
+  { idx: 5, ym: '2027-03', label: '27년 3월',  year: 2027, month: 3,  start: '2027-03-01', end: '2027-03-31', days: 31, target: 0 },
+  { idx: 6, ym: '2027-04', label: '27년 4월',  year: 2027, month: 4,  start: '2027-04-01', end: '2027-04-30', days: 30, target: 0 },
+  { idx: 7, ym: '2027-05', label: '27년 5월',  year: 2027, month: 5,  start: '2027-05-01', end: '2027-05-31', days: 31, target: 0 },
+  { idx: 8, ym: '2027-06', label: '27년 6월',  year: 2027, month: 6,  start: '2027-06-01', end: '2027-06-30', days: 30, target: 0 },
+  { idx: 9, ym: '2027-07', label: '27년 7월',  year: 2027, month: 7,  start: '2027-07-01', end: '2027-07-31', days: 31, target: 0 },
+  { idx: 10, ym: '2027-08', label: '27년 8월', year: 2027, month: 8,  start: '2027-08-01', end: '2027-08-31', days: 31, target: 0 },
+  { idx: 11, ym: '2027-09', label: '27년 9월', year: 2027, month: 9,  start: '2027-09-01', end: '2027-09-30', days: 30, target: 0 },
+  { idx: 12, ym: '2027-10', label: '27년 10월', year: 2027, month: 10, start: '2027-10-01', end: '2027-10-31', days: 31, target: 0 }
 ];
 
-// 3. 판매채널·기간별 비용 설정 (10kg 미만 배송비 / 10kg 이상 배송비 구분 + 박스, 포장비닐, 리플렛, 기타비용)
-// 스마트스토어 단가 변경 이력 예시 포함 (2026-11-15 이전 vs 2026-11-16 이후)
+// 3. 판매채널·기간별 비용 설정 (기본 8개 채널 틀만 등록, 예시 단가는 모두 0으로 비워둠)
 const CHANNEL_RATES = [
-  {
-    channel: '농라',
-    start: '2026-11-01',
-    end: '',
-    feeRate: 0.00,
-    shipUnder10: 3500,
-    shipOver10: 4500,
-    boxCost: 650,
-    vinylCost: 150,
-    leafletCost: 100,
-    etcCost: 0,
-    note: '[예시] 농라 카페 직거래 (수수료 0%, 10kg미만 3,500원 / 10kg이상 4,500원)'
-  },
-  {
-    channel: '스마트스토어',
-    start: '2026-11-01',
-    end: '2026-11-15',
-    feeRate: 0.055,
-    shipUnder10: 3200,
-    shipOver10: 4200,
-    boxCost: 650,
-    vinylCost: 150,
-    leafletCost: 100,
-    etcCost: 0,
-    note: '[단가변경 전] 11/15까지 적용 단가 (수수료 5.5%, 미만택배 3,200원/이상 4,200원)'
-  },
-  {
-    channel: '스마트스토어',
-    start: '2026-11-16',
-    end: '',
-    feeRate: 0.058,
-    shipUnder10: 3500,
-    shipOver10: 4500,
-    boxCost: 750,
-    vinylCost: 150,
-    leafletCost: 100,
-    etcCost: 0,
-    note: '[단가변경 후] 11/16부터 택배비·박스비 인상 적용 (과거 매출은 이전 단가 유지)'
-  },
-  {
-    channel: '카톡',
-    start: '2026-11-01',
-    end: '',
-    feeRate: 0.033,
-    shipUnder10: 3500,
-    shipOver10: 4500,
-    boxCost: 650,
-    vinylCost: 150,
-    leafletCost: 100,
-    etcCost: 0,
-    note: '[예시] 카카오톡 톡채널/선물 주문'
-  },
-  {
-    channel: '고흥몰',
-    start: '2026-11-01',
-    end: '',
-    feeRate: 0.040,
-    shipUnder10: 3000,
-    shipOver10: 4000,
-    boxCost: 650,
-    vinylCost: 150,
-    leafletCost: 100,
-    etcCost: 0,
-    note: '[예시] 고흥몰 입점 특산물 판매'
-  },
-  {
-    channel: '남도장터',
-    start: '2026-11-01',
-    end: '',
-    feeRate: 0.050,
-    shipUnder10: 3200,
-    shipOver10: 4200,
-    boxCost: 650,
-    vinylCost: 150,
-    leafletCost: 100,
-    etcCost: 0,
-    note: '[예시] 남도장터 온라인몰 판매'
-  },
-  {
-    channel: '로컬푸드',
-    start: '2026-11-01',
-    end: '',
-    feeRate: 0.100,
-    shipUnder10: 0,
-    shipOver10: 0,
-    boxCost: 400,
-    vinylCost: 120,
-    leafletCost: 80,
-    etcCost: 0,
-    note: '[예시] 로컬푸드 직매장 납품 (택배비 없음, 소포장 박스·비닐·리플렛만 적용)'
-  },
-  {
-    channel: '공판장',
-    start: '2026-11-01',
-    end: '',
-    feeRate: 0.070,
-    shipUnder10: 1000,
-    shipOver10: 1500,
-    boxCost: 650,
-    vinylCost: 100,
-    leafletCost: 0,
-    etcCost: 0,
-    note: '[예시] 농산물 공판장 출하 (상장수수료 7%, 계통운송비 및 박스·속비닐 반영)'
-  },
-  {
-    channel: '기타',
-    start: '2026-11-01',
-    end: '',
-    feeRate: 0.030,
-    shipUnder10: 3500,
-    shipOver10: 4500,
-    boxCost: 650,
-    vinylCost: 150,
-    leafletCost: 100,
-    etcCost: 0,
-    note: '[예시] 전화/방문 및 기타 외부채널 기본값'
-  }
+  { channel: '농라', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, etcCost: 0, note: '' },
+  { channel: '스마트스토어', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, etcCost: 0, note: '' },
+  { channel: '카톡', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, etcCost: 0, note: '' },
+  { channel: '고흥몰', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, etcCost: 0, note: '' },
+  { channel: '남도장터', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, etcCost: 0, note: '' },
+  { channel: '로컬푸드', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, etcCost: 0, note: '' },
+  { channel: '공판장', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, etcCost: 0, note: '' },
+  { channel: '기타', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, etcCost: 0, note: '' }
 ];
 
-// 4. 일일 매출 입력 예시 데이터 (2026년 11월 ~ 2027년 2월, 거래처/상품원가 삭제 & 10kg 미만/이상 주문건수 구분)
-const DAILY_SALES = [
-  // 2026년 11월 (집중 분석 월: 12건, 단가 변경일 11/15 전후 비교 및 적자 예시 포함)
-  { date: '2026-11-02', channel: '농라', ordersUnder10: 24, ordersOver10: 12, sales: 1480000, extraCost: 0, note: '[예시] 11월 첫째주 햇유자·특산물 공동구매' },
-  { date: '2026-11-04', channel: '고흥몰', ordersUnder10: 30, ordersOver10: 10, sales: 1620000, extraCost: 0, note: '[예시] 고흥몰 가을 수확 기획전' },
-  { date: '2026-11-06', channel: '카톡', ordersUnder10: 18, ordersOver10: 7, sales: 980000, extraCost: 0, note: '[예시] 단골 고객 카톡 알림톡 주문' },
-  { date: '2026-11-08', channel: '남도장터', ordersUnder10: 22, ordersOver10: 14, sales: 1540000, extraCost: 0, note: '[예시] 남도장터 주말 할인전' },
-  { date: '2026-11-11', channel: '로컬푸드', ordersUnder10: 45, ordersOver10: 5, sales: 1150000, extraCost: 0, note: '[예시] 로컬푸드 직매장 출하' },
-  { date: '2026-11-14', channel: '스마트스토어', ordersUnder10: 20, ordersOver10: 10, sales: 1200000, extraCost: 0, note: '[단가변경 전 확인] 11/15 이전: 수수료 5.5%, 미만 4,200원 / 이상 5,200원 적용' },
-  { date: '2026-11-17', channel: '스마트스토어', ordersUnder10: 20, ordersOver10: 10, sales: 1200000, extraCost: 0, note: '[단가변경 후 확인] 11/16 이후: 수수료 5.8%, 미만 4,600원 / 이상 5,600원 자동 적용!' },
-  { date: '2026-11-20', channel: '농라', ordersUnder10: 28, ordersOver10: 15, sales: 1850000, extraCost: 15000, note: '[예시] 대용량 10kg 이상 주문 급증 (완충재 추가비용 반영)' },
-  { date: '2026-11-22', channel: '기타', ordersUnder10: 12, ordersOver10: 8, sales: 750000, extraCost: 0, note: '[예시] 전화 주문 단체 발송' },
-  { date: '2026-11-25', channel: '기타', ordersUnder10: 15, ordersOver10: 10, sales: 95000, extraCost: 35000, note: '[적자 구분 예시] 파격 샘플행사 및 파손 재발송비로 인한 일시 적자' },
-  { date: '2026-11-27', channel: '고흥몰', ordersUnder10: 25, ordersOver10: 12, sales: 1520000, extraCost: 0, note: '[예시] 고흥몰 베스트 상품전' },
-  { date: '2026-11-28', channel: '공판장', ordersUnder10: 30, ordersOver10: 40, sales: 2100000, extraCost: 0, note: '[예시] 공판장 경매 대량 출하 (10kg 이상 비중 높음)' },
-  { date: '2026-11-29', channel: '카톡', ordersUnder10: 20, ordersOver10: 8, sales: 1120000, extraCost: 0, note: '[예시] 월말 카톡 재구매 주문' },
+// 4. 일일 매출 입력 데이터 (예시 데이터 모두 삭제 완료)
+const DAILY_SALES = [];
 
-  // 2026년 12월
-  { date: '2026-12-05', channel: '스마트스토어', ordersUnder10: 45, ordersOver10: 20, sales: 2850000, extraCost: 0, note: '[예시] 연말 선물세트 주문' },
-  { date: '2026-12-12', channel: '농라', ordersUnder10: 50, ordersOver10: 25, sales: 3400000, extraCost: 0, note: '[예시] 겨울철 인기 특산물 공구' },
-  { date: '2026-12-18', channel: '공판장', ordersUnder10: 35, ordersOver10: 50, sales: 2650000, extraCost: 0, note: '[예시] 12월 공판장 정기 출하' },
-  { date: '2026-12-20', channel: '남도장터', ordersUnder10: 38, ordersOver10: 18, sales: 2420000, extraCost: 0, note: '[예시] 연말 감사 기획전' },
-  { date: '2026-12-28', channel: '고흥몰', ordersUnder10: 40, ordersOver10: 15, sales: 2380000, extraCost: 0, note: '[예시] 해맞이 특산품 행사' },
-
-  // 2027년 1월
-  { date: '2027-01-08', channel: '스마트스토어', ordersUnder10: 55, ordersOver10: 30, sales: 3950000, extraCost: 0, note: '[예시] 설 명절 사전예약 1차' },
-  { date: '2027-01-16', channel: '농라', ordersUnder10: 60, ordersOver10: 35, sales: 4500000, extraCost: 20000, note: '[예시] 설 명절 대량주문' },
-  { date: '2027-01-24', channel: '카톡', ordersUnder10: 42, ordersOver10: 22, sales: 2980000, extraCost: 0, note: '[예시] 카톡 명절 선물세트' },
-  { date: '2027-01-29', channel: '로컬푸드', ordersUnder10: 70, ordersOver10: 15, sales: 2150000, extraCost: 0, note: '[예시] 명절 직매장 특판' },
-
-  // 2027년 2월
-  { date: '2027-02-06', channel: '고흥몰', ordersUnder10: 48, ordersOver10: 20, sales: 3100000, extraCost: 0, note: '[예시] 정월대보름 기획전' },
-  { date: '2027-02-15', channel: '남도장터', ordersUnder10: 35, ordersOver10: 15, sales: 2250000, extraCost: 0, note: '[예시] 2월 정기 프로모션' },
-  { date: '2027-02-23', channel: '스마트스토어', ordersUnder10: 40, ordersOver10: 12, sales: 2320000, extraCost: 0, note: '[예시] 봄맞이 사전 특가' }
-];
-
-// 5. 월별 공통비용 (2026년 11월 ~ 2027년 2월 예시)
-const COMMON_COSTS = [
-  { date: '2026-11-15', category: '인건비/작업비', amount: 350000, note: '[예시] 11월 선별·포장 일용직 작업비' },
-  { date: '2026-11-25', category: '월 광고선전비', amount: 300000, note: '[예시] 11월 키워드 및 배너 광고비' },
-  { date: '2026-11-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 11월 저온창고 임대료' },
-  { date: '2026-11-28', category: '공과금/통신/프로그램', amount: 120000, note: '[예시] 11월 전기료 및 송장프로그램' },
-  { date: '2026-11-30', category: '기타 공통고정비', amount: 80000, note: '[예시] 11월 작업장 소모품 및 다과비' },
-  { date: '2026-12-25', category: '월 광고선전비', amount: 350000, note: '[예시] 12월 연말 선물세트 광고비' },
-  { date: '2026-12-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 12월 저온창고 임대료' },
-  { date: '2027-01-25', category: '월 광고선전비', amount: 400000, note: '[예시] 1월 설 명절 집중 광고비' },
-  { date: '2027-01-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 1월 저온창고 임대료' },
-  { date: '2027-02-25', category: '월 광고선전비', amount: 250000, note: '[예시] 2월 기본 검색광고비' },
-  { date: '2027-02-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 2월 저온창고 임대료' }
-];
+// 5. 월별 공통비용 데이터 (예시 데이터 모두 삭제 완료)
+const COMMON_COSTS = [];
 
 // 일일 매출 행 계산 함수 (10kg 미만 / 10kg 이상 구분 + 박스/비닐/리플렛 반영)
 function computeRowMetrics(row, rates) {

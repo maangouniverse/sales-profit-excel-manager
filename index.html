@@ -18,7 +18,7 @@
       <div class="header-actions">
         <span id="lastSavedBadge" class="save-status-badge">✅ 자동저장 활성화됨</span>
         <button id="btnManualSave" class="btn btn-save" title="현재 입력·수정한 모든 데이터를 즉시 저장합니다">💾 현재 내용 저장하기</button>
-        <button id="btnResetSample" class="btn btn-outline" title="예시 데이터로 초기화">🔄 예시 데이터 복원</button>
+        <button id="btnResetSample" class="btn btn-outline" title="모든 데이터를 0원 초기 상태로 비웁니다">🧹 전체 데이터 초기화</button>
         <a href="./거래처별_매출순이익_관리프로그램.xlsx" download="거래처별_매출순이익_관리프로그램.xlsx" class="btn btn-primary">
           📥 엑셀 프로그램(.xlsx) 다운로드
         </a>
@@ -51,7 +51,7 @@
           <label for="filterYm">조회 연월 선택 (2026년 11월 ~ 2027년 10월)</label>
           <select id="filterYm" class="input-select yellow-input">
             <option value="all">전체 기간 (2026년 11월 ~ 2027년 10월)</option>
-            <option value="2026-11" selected>26년 11월 (집중 예시 데이터)</option>
+            <option value="2026-11" selected>26년 11월</option>
             <option value="2026-12">26년 12월</option>
             <option value="2027-01">27년 1월</option>
             <option value="2027-02">27년 2월</option>
@@ -83,7 +83,7 @@
         </div>
         <div class="filter-item">
           <label>12개월 목표매출 총합계 (26.11~27.10)</label>
-          <div id="totalAnnualTargetBadge" class="calc-badge highlight-badge">140,000,000원</div>
+          <div id="totalAnnualTargetBadge" class="calc-badge highlight-badge">0원</div>
         </div>
       </div>
 
@@ -305,7 +305,7 @@
         <form id="addDailySaleForm" class="input-grid-form">
           <div class="form-field">
             <label>매출일자 (달력 선택) *</label>
-            <input type="date" id="inSaleDate" class="input-field yellow-input date-clickable" value="2026-11-30" required />
+            <input type="date" id="inSaleDate" class="input-field yellow-input date-clickable" value="2026-11-01" required />
           </div>
           <div class="form-field">
             <label>판매채널 (드롭다운) *</label>
@@ -313,15 +313,15 @@
           </div>
           <div class="form-field">
             <label>10kg 미만 주문건수 (건) *</label>
-            <input type="number" id="inSaleUnder10" class="input-field yellow-input" min="0" step="1" value="20" required />
+            <input type="number" id="inSaleUnder10" class="input-field yellow-input" min="0" step="1" value="0" required />
           </div>
           <div class="form-field">
             <label>10kg 이상 주문건수 (건) *</label>
-            <input type="number" id="inSaleOver10" class="input-field yellow-input" min="0" step="1" value="10" required />
+            <input type="number" id="inSaleOver10" class="input-field yellow-input" min="0" step="1" value="0" required />
           </div>
           <div class="form-field">
             <label>일일 매출액 (할인반영, 원) *</label>
-            <input type="number" id="inSaleAmount" class="input-field yellow-input" min="0" step="100" value="1250000" required />
+            <input type="number" id="inSaleAmount" class="input-field yellow-input" min="0" step="100" value="0" required />
           </div>
           <div class="form-field">
             <label>추가 비용 (특이발생분, 원)</label>
@@ -410,7 +410,7 @@
           </div>
           <div class="form-field">
             <label>📅 적용 시작일 (달력 선택) *</label>
-            <input type="date" id="inRateStart" class="input-field yellow-input date-clickable" value="2026-12-01" required />
+            <input type="date" id="inRateStart" class="input-field yellow-input date-clickable" value="2026-11-01" required />
           </div>
           <div class="form-field">
             <label>📅 적용 종료일 (비워두면 계속)</label>
@@ -418,27 +418,27 @@
           </div>
           <div class="form-field">
             <label>매출액 수수료율 (%) *</label>
-            <input type="number" id="inRateFeePct" class="input-field yellow-input" min="0" max="100" step="0.01" value="5.0" required />
+            <input type="number" id="inRateFeePct" class="input-field yellow-input" min="0" max="100" step="0.01" value="0" required />
           </div>
           <div class="form-field">
             <label>10kg 미만 배송비 (원) *</label>
-            <input type="number" id="inRateShipUnder10" class="input-field yellow-input" min="0" step="10" value="3500" required />
+            <input type="number" id="inRateShipUnder10" class="input-field yellow-input" min="0" step="10" value="0" required />
           </div>
           <div class="form-field">
             <label>10kg 이상 배송비 (원) *</label>
-            <input type="number" id="inRateShipOver10" class="input-field yellow-input" min="0" step="10" value="4500" required />
+            <input type="number" id="inRateShipOver10" class="input-field yellow-input" min="0" step="10" value="0" required />
           </div>
           <div class="form-field">
             <label>박스 비용 (1건당, 원) *</label>
-            <input type="number" id="inRateBox" class="input-field yellow-input" min="0" step="10" value="650" required />
+            <input type="number" id="inRateBox" class="input-field yellow-input" min="0" step="10" value="0" required />
           </div>
           <div class="form-field">
             <label>포장비닐 비용 (1건당, 원) *</label>
-            <input type="number" id="inRateVinyl" class="input-field yellow-input" min="0" step="10" value="150" required />
+            <input type="number" id="inRateVinyl" class="input-field yellow-input" min="0" step="10" value="0" required />
           </div>
           <div class="form-field">
             <label>리플렛 비용 (1건당, 원) *</label>
-            <input type="number" id="inRateLeaflet" class="input-field yellow-input" min="0" step="10" value="100" required />
+            <input type="number" id="inRateLeaflet" class="input-field yellow-input" min="0" step="10" value="0" required />
           </div>
           <div class="form-field">
             <label>비고</label>
@@ -591,15 +591,15 @@
         </div>
         <div class="target-sum-box primary">
           <span>💰 12개월 목표매출 총합계</span>
-          <strong id="tab5TotalTargetSum">140,000,000원</strong>
+          <strong id="tab5TotalTargetSum">0원</strong>
         </div>
         <div class="target-sum-box">
           <span>📅 현재 선택된 조회기간 목표매출 합계</span>
-          <strong id="tab5AppliedTargetSum">12,000,000원</strong>
+          <strong id="tab5AppliedTargetSum">0원</strong>
         </div>
         <div class="target-sum-box">
           <span>🏢 현재 조회기간 공통비용 합계</span>
-          <strong id="tab5PeriodCommonSum">800,000원</strong>
+          <strong id="tab5PeriodCommonSum">0원</strong>
         </div>
       </div>
 
