@@ -1,6 +1,7 @@
 // 초기 기본 데이터 (엑셀 파일과 100% 동일한 데이터셋: 2026.11 ~ 2027.10 기준)
 const INITIAL_STATE = {
-  channels: ['농라', '스마트스토어', '카톡', '고흥몰', '남도장터', '로컬푸드', '기타'],
+  channels: ['농라', '스마트스토어', '카톡', '고흥몰', '남도장터', '로컬푸드', '공판장', '기타'],
+  commonCostCategories: ['월 광고선전비', '작업장/창고 임대료', '인건비/작업비', '공과금/통신/프로그램', '기타 공통고정비'],
   targetMonths: [
     { idx: 1, ym: '2026-11', label: '26년 11월', start: '2026-11-01', end: '2026-11-30', days: 30, target: 12000000 },
     { idx: 2, ym: '2026-12', label: '26년 12월', start: '2026-12-01', end: '2026-12-31', days: 31, target: 15000000 },
@@ -23,7 +24,8 @@ const INITIAL_STATE = {
     { id: 5, channel: '고흥몰', start: '2026-11-01', end: '', feeRate: 0.040, shipUnder10: 3000, shipOver10: 4000, boxCost: 650, vinylCost: 150, leafletCost: 100, note: '[예시] 고흥몰 입점 특산물 판매' },
     { id: 6, channel: '남도장터', start: '2026-11-01', end: '', feeRate: 0.050, shipUnder10: 3200, shipOver10: 4200, boxCost: 650, vinylCost: 150, leafletCost: 100, note: '[예시] 남도장터 온라인몰 판매' },
     { id: 7, channel: '로컬푸드', start: '2026-11-01', end: '', feeRate: 0.100, shipUnder10: 0, shipOver10: 0, boxCost: 400, vinylCost: 120, leafletCost: 80, note: '[예시] 로컬푸드 직매장 납품 (택배비 없음, 소포장 박스·비닐·리플렛만 적용)' },
-    { id: 8, channel: '기타', start: '2026-11-01', end: '', feeRate: 0.030, shipUnder10: 3500, shipOver10: 4500, boxCost: 650, vinylCost: 150, leafletCost: 100, note: '[예시] 전화/방문 및 기타 외부채널 기본값' }
+    { id: 8, channel: '공판장', start: '2026-11-01', end: '', feeRate: 0.070, shipUnder10: 1000, shipOver10: 1500, boxCost: 650, vinylCost: 100, leafletCost: 0, note: '[예시] 농협/도매시장 공판장 출하 (상장수수료 7%, 운임·하역비 및 출하박스 적용)' },
+    { id: 9, channel: '기타', start: '2026-11-01', end: '', feeRate: 0.030, shipUnder10: 3500, shipOver10: 4500, boxCost: 650, vinylCost: 150, leafletCost: 100, note: '[예시] 전화/방문 및 기타 외부채널 기본값' }
   ],
   dailySales: [
     { id: 1, date: '2026-11-02', channel: '농라', ordersUnder10: 24, ordersOver10: 12, sales: 1480000, extraCost: 0, note: '[예시] 11월 첫째주 햇유자·특산물 공동구매' },
@@ -37,33 +39,37 @@ const INITIAL_STATE = {
     { id: 9, date: '2026-11-22', channel: '기타', ordersUnder10: 12, ordersOver10: 8, sales: 750000, extraCost: 0, note: '[예시] 전화 주문 단체 발송' },
     { id: 10, date: '2026-11-25', channel: '기타', ordersUnder10: 15, ordersOver10: 10, sales: 95000, extraCost: 35000, note: '[적자 구분 예시] 파격 샘플행사 및 파손 재발송비로 인한 일시 적자' },
     { id: 11, date: '2026-11-27', channel: '고흥몰', ordersUnder10: 25, ordersOver10: 12, sales: 1520000, extraCost: 0, note: '[예시] 고흥몰 베스트 상품전' },
-    { id: 12, date: '2026-11-29', channel: '카톡', ordersUnder10: 20, ordersOver10: 8, sales: 1120000, extraCost: 0, note: '[예시] 월말 카톡 재구매 주문' },
-    { id: 13, date: '2026-12-05', channel: '스마트스토어', ordersUnder10: 45, ordersOver10: 20, sales: 2850000, extraCost: 0, note: '[예시] 연말 선물세트 주문' },
-    { id: 14, date: '2026-12-12', channel: '농라', ordersUnder10: 50, ordersOver10: 25, sales: 3400000, extraCost: 0, note: '[예시] 겨울철 인기 특산물 공구' },
-    { id: 15, date: '2026-12-20', channel: '남도장터', ordersUnder10: 38, ordersOver10: 18, sales: 2420000, extraCost: 0, note: '[예시] 연말 감사 기획전' },
-    { id: 16, date: '2026-12-28', channel: '고흥몰', ordersUnder10: 40, ordersOver10: 15, sales: 2380000, extraCost: 0, note: '[예시] 해맞이 특산품 행사' },
-    { id: 17, date: '2027-01-08', channel: '스마트스토어', ordersUnder10: 55, ordersOver10: 30, sales: 3950000, extraCost: 0, note: '[예시] 설 명절 사전예약 1차' },
-    { id: 18, date: '2027-01-16', channel: '농라', ordersUnder10: 60, ordersOver10: 35, sales: 4500000, extraCost: 20000, note: '[예시] 설 명절 대량주문' },
-    { id: 19, date: '2027-01-24', channel: '카톡', ordersUnder10: 42, ordersOver10: 22, sales: 2980000, extraCost: 0, note: '[예시] 카톡 명절 선물세트' },
-    { id: 20, date: '2027-01-29', channel: '로컬푸드', ordersUnder10: 70, ordersOver10: 15, sales: 2150000, extraCost: 0, note: '[예시] 명절 직매장 특판' },
-    { id: 21, date: '2027-02-06', channel: '고흥몰', ordersUnder10: 48, ordersOver10: 20, sales: 3100000, extraCost: 0, note: '[예시] 정월대보름 기획전' },
-    { id: 22, date: '2027-02-15', channel: '남도장터', ordersUnder10: 35, ordersOver10: 15, sales: 2250000, extraCost: 0, note: '[예시] 2월 정기 프로모션' },
-    { id: 23, date: '2027-02-23', channel: '스마트스토어', ordersUnder10: 40, ordersOver10: 12, sales: 2320000, extraCost: 0, note: '[예시] 봄맞이 사전 특가' }
+    { id: 12, date: '2026-11-28', channel: '공판장', ordersUnder10: 30, ordersOver10: 40, sales: 2100000, extraCost: 0, note: '[예시] 공판장 경매 대량 출하 (10kg 이상 비중 높음)' },
+    { id: 13, date: '2026-11-29', channel: '카톡', ordersUnder10: 20, ordersOver10: 8, sales: 1120000, extraCost: 0, note: '[예시] 월말 카톡 재구매 주문' },
+    { id: 14, date: '2026-12-05', channel: '스마트스토어', ordersUnder10: 45, ordersOver10: 20, sales: 2850000, extraCost: 0, note: '[예시] 연말 선물세트 주문' },
+    { id: 15, date: '2026-12-12', channel: '농라', ordersUnder10: 50, ordersOver10: 25, sales: 3400000, extraCost: 0, note: '[예시] 겨울철 인기 특산물 공구' },
+    { id: 16, date: '2026-12-18', channel: '공판장', ordersUnder10: 35, ordersOver10: 50, sales: 2650000, extraCost: 0, note: '[예시] 12월 공판장 정기 출하' },
+    { id: 17, date: '2026-12-20', channel: '남도장터', ordersUnder10: 38, ordersOver10: 18, sales: 2420000, extraCost: 0, note: '[예시] 연말 감사 기획전' },
+    { id: 18, date: '2026-12-28', channel: '고흥몰', ordersUnder10: 40, ordersOver10: 15, sales: 2380000, extraCost: 0, note: '[예시] 해맞이 특산품 행사' },
+    { id: 19, date: '2027-01-08', channel: '스마트스토어', ordersUnder10: 55, ordersOver10: 30, sales: 3950000, extraCost: 0, note: '[예시] 설 명절 사전예약 1차' },
+    { id: 20, date: '2027-01-16', channel: '농라', ordersUnder10: 60, ordersOver10: 35, sales: 4500000, extraCost: 20000, note: '[예시] 설 명절 대량주문' },
+    { id: 21, date: '2027-01-24', channel: '카톡', ordersUnder10: 42, ordersOver10: 22, sales: 2980000, extraCost: 0, note: '[예시] 카톡 명절 선물세트' },
+    { id: 22, date: '2027-01-29', channel: '로컬푸드', ordersUnder10: 70, ordersOver10: 15, sales: 2150000, extraCost: 0, note: '[예시] 명절 직매장 특판' },
+    { id: 23, date: '2027-02-06', channel: '고흥몰', ordersUnder10: 48, ordersOver10: 20, sales: 3100000, extraCost: 0, note: '[예시] 정월대보름 기획전' },
+    { id: 24, date: '2027-02-15', channel: '남도장터', ordersUnder10: 35, ordersOver10: 15, sales: 2250000, extraCost: 0, note: '[예시] 2월 정기 프로모션' },
+    { id: 25, date: '2027-02-23', channel: '스마트스토어', ordersUnder10: 40, ordersOver10: 12, sales: 2320000, extraCost: 0, note: '[예시] 봄맞이 사전 특가' }
   ],
   commonCosts: [
-    { id: 1, date: '2026-11-25', category: '월 광고선전비', amount: 300000, note: '[예시] 11월 키워드 및 배너 광고비' },
-    { id: 2, date: '2026-11-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 11월 저온창고 임대료' },
-    { id: 3, date: '2026-11-28', category: '공과금/통신/프로그램', amount: 100000, note: '[예시] 11월 전기료 및 송장프로그램' },
-    { id: 4, date: '2026-12-25', category: '월 광고선전비', amount: 350000, note: '[예시] 12월 연말 선물세트 광고비' },
-    { id: 5, date: '2026-12-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 12월 저온창고 임대료' },
-    { id: 6, date: '2027-01-25', category: '월 광고선전비', amount: 400000, note: '[예시] 1월 설 명절 집중 광고비' },
-    { id: 7, date: '2027-01-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 1월 저온창고 임대료' },
-    { id: 8, date: '2027-02-25', category: '월 광고선전비', amount: 250000, note: '[예시] 2월 기본 검색광고비' },
-    { id: 9, date: '2027-02-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 2월 저온창고 임대료' }
+    { id: 1, date: '2026-11-15', category: '인건비/작업비', amount: 350000, note: '[예시] 11월 선별·포장 일용직 작업비' },
+    { id: 2, date: '2026-11-25', category: '월 광고선전비', amount: 300000, note: '[예시] 11월 키워드 및 배너 광고비' },
+    { id: 3, date: '2026-11-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 11월 저온창고 임대료' },
+    { id: 4, date: '2026-11-28', category: '공과금/통신/프로그램', amount: 120000, note: '[예시] 11월 전기료 및 송장프로그램' },
+    { id: 5, date: '2026-11-30', category: '기타 공통고정비', amount: 80000, note: '[예시] 11월 작업장 소모품 및 다과비' },
+    { id: 6, date: '2026-12-25', category: '월 광고선전비', amount: 350000, note: '[예시] 12월 연말 선물세트 광고비' },
+    { id: 7, date: '2026-12-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 12월 저온창고 임대료' },
+    { id: 8, date: '2027-01-25', category: '월 광고선전비', amount: 400000, note: '[예시] 1월 설 명절 집중 광고비' },
+    { id: 9, date: '2027-01-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 1월 저온창고 임대료' },
+    { id: 10, date: '2027-02-25', category: '월 광고선전비', amount: 250000, note: '[예시] 2월 기본 검색광고비' },
+    { id: 11, date: '2027-02-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 2월 저온창고 임대료' }
   ]
 };
 
-const STORAGE_KEY = 'sales_profit_manager_state_v2';
+const STORAGE_KEY = 'sales_profit_manager_state_v3';
 let state = loadState();
 let charts = {};
 
@@ -308,7 +314,7 @@ function renderAll() {
   document.getElementById('kpiCommonCostSub').textContent = `공통비용 ${fmtWon(periodCommonCost)} 차감 후`;
 
   // 대시보드 표 및 차트 업데이트
-  renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, totalVarCost, netProfit, finalProfit);
+  renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, totalVarCost, netProfit, finalProfit, start, end, periodCommonCost);
 
   // 시트2: 일일 매출 입력 테이블 렌더링
   renderDailySalesTable(evaluatedSales, start, end);
@@ -329,7 +335,41 @@ function renderAll() {
   attachCalendarPickers();
 }
 
-function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, totalVarCost, netProfit, finalProfit) {
+// 공통비용 항목별 집계 헬퍼 (기본 5대 항목 + 사용자가 새로 입력한 항목 모두 자동 포함)
+function getCommonCostCategoryStats(start, end) {
+  const defaultCats = state.commonCostCategories || [
+    '월 광고선전비',
+    '작업장/창고 임대료',
+    '인건비/작업비',
+    '공과금/통신/프로그램',
+    '기타 공통고정비'
+  ];
+  const catSet = new Set(defaultCats);
+  state.commonCosts.forEach(c => {
+    if (c.category && c.category.trim()) catSet.add(c.category.trim());
+  });
+  const categories = Array.from(catSet);
+
+  const totalPeriodCommon = state.commonCosts
+    .filter(c => c.date >= start && c.date <= end)
+    .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+  const totalAllCommon = state.commonCosts
+    .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+
+  return categories.map(catName => {
+    const periodAmt = state.commonCosts
+      .filter(c => c.category === catName && c.date >= start && c.date <= end)
+      .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+    const allAmt = state.commonCosts
+      .filter(c => c.category === catName)
+      .reduce((a, b) => a + (Number(b.amount) || 0), 0);
+    const periodShare = totalPeriodCommon > 0 ? periodAmt / totalPeriodCommon : 0;
+    const allShare = totalAllCommon > 0 ? allAmt / totalAllCommon : 0;
+    return { catName, periodAmt, periodShare, allAmt, allShare };
+  });
+}
+
+function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, totalVarCost, netProfit, finalProfit, start, end, periodCommonCost) {
   // 1) 상단 히어로 막대 차트 (매출성과.png 우측 차트 스타일: 단위 천원)
   updateChart('chartTargetVsActual', {
     type: 'bar',
@@ -399,7 +439,7 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
     profitTbody.appendChild(tr);
   });
 
-  const palette = ['#92add0', '#c1d4f5', '#112240', '#e6cc55', '#5c7cfa', '#c5d185', '#d0d7de'];
+  const palette = ['#92add0', '#c1d4f5', '#112240', '#e6cc55', '#5c7cfa', '#c5d185', '#f2a68d', '#d0d7de'];
 
   // 매출액 비중 도넛 차트
   updateChart('chartChannelShare', {
@@ -538,6 +578,82 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
       maintainAspectRatio: false,
       plugins: { legend: { position: 'bottom' } },
       scales: { x: { grid: { display: false } } }
+    }
+  });
+
+  // 4) 공통비용 항목별 지출 비중 표 & 도넛/막대 그래프 (실적자동계산2.png 우측 하단 '항목별 지출 비중' 스타일)
+  const ccStats = getCommonCostCategoryStats(start, end);
+  const ccSorted = [...ccStats].sort((a, b) => b.periodAmt - a.periodAmt);
+  const ccTbody = document.querySelector('#dashboardCommonCostTable tbody');
+  const ccTfoot = document.querySelector('#dashboardCommonCostTable tfoot');
+  if (ccTbody && ccTfoot) {
+    ccTbody.innerHTML = '';
+    ccSorted.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${idx + 1}</strong></td>
+        <td class="name-cell">${item.catName}</td>
+        <td class="num">${fmtNum(item.periodAmt)}</td>
+        <td class="num" style="color:#666;font-weight:600;">${fmtPct(item.periodShare, 1)}</td>
+      `;
+      ccTbody.appendChild(tr);
+    });
+    ccTfoot.innerHTML = `
+      <tr>
+        <td colspan="2"><strong>선택기간 공통비용 합계</strong></td>
+        <td class="num"><strong>${fmtNum(periodCommonCost)}</strong></td>
+        <td class="num"><strong>${periodCommonCost > 0 ? '100.0%' : '0.0%'}</strong></td>
+      </tr>
+    `;
+  }
+
+  updateChart('chartCommonCostShare', {
+    type: 'doughnut',
+    data: {
+      labels: ccSorted.map(x => `${x.catName} (${fmtPct(x.periodShare, 1)})`),
+      datasets: [{
+        data: ccSorted.map(x => x.periodAmt),
+        backgroundColor: palette,
+        borderWidth: 1,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '55%',
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const val = ctx.parsed || 0;
+              const pct = periodCommonCost > 0 ? ((val / periodCommonCost) * 100).toFixed(1) : '0.0';
+              return ` ${fmtWon(val)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  updateChart('chartCommonCostBar', {
+    type: 'bar',
+    data: {
+      labels: ccStats.map(x => x.catName),
+      datasets: [
+        { label: '선택기간 지출액 (원)', data: ccStats.map(x => x.periodAmt), backgroundColor: '#2b4cbe', borderRadius: 3 },
+        { label: '전체 누적 지출액 (원)', data: ccStats.map(x => x.allAmt), backgroundColor: '#92add0', borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: '#f0f0f0' } }
+      }
     }
   });
 }
@@ -859,6 +975,77 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
       <td colspan="3">현재 조회기간 반영액: ${fmtWon(periodCommonCost)}</td>
     </tr>
   `;
+
+  // 시트 5 하단: 공통비용 항목별 지출 집계표 & 그래프 업데이트
+  const ccStats = getCommonCostCategoryStats(start, end);
+  const catTbody = document.querySelector('#tab5CommonCategoryTable tbody');
+  const catTfoot = document.querySelector('#tab5CommonCategoryTable tfoot');
+  if (catTbody && catTfoot) {
+    catTbody.innerHTML = '';
+    ccStats.forEach((st, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td><strong>${st.catName}</strong></td>
+        <td class="num"><strong>${fmtWon(st.periodAmt)}</strong></td>
+        <td class="num">${fmtPct(st.periodShare, 1)}</td>
+        <td class="num">${fmtWon(st.allAmt)}</td>
+        <td class="num">${fmtPct(st.allShare, 1)}</td>
+      `;
+      catTbody.appendChild(tr);
+    });
+    catTfoot.innerHTML = `
+      <tr>
+        <td colspan="2">공통비용 항목별 합계 (${ccStats.length}개 항목)</td>
+        <td class="num">${fmtWon(periodCommonCost)}</td>
+        <td class="num">${periodCommonCost > 0 ? '100.0%' : '0.0%'}</td>
+        <td class="num">${fmtWon(sumAllCommon)}</td>
+        <td class="num">${sumAllCommon > 0 ? '100.0%' : '0.0%'}</td>
+      </tr>
+    `;
+  }
+
+  const palette = ['#92add0', '#c1d4f5', '#112240', '#e6cc55', '#5c7cfa', '#c5d185', '#f2a68d', '#d0d7de'];
+  updateChart('chartTab5CommonDoughnut', {
+    type: 'doughnut',
+    data: {
+      labels: ccStats.map(x => `${x.catName} (${fmtPct(x.periodShare, 1)})`),
+      datasets: [{
+        data: ccStats.map(x => x.periodAmt),
+        backgroundColor: palette,
+        borderWidth: 1,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '55%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }
+      }
+    }
+  });
+
+  updateChart('chartTab5CommonBar', {
+    type: 'bar',
+    data: {
+      labels: ccStats.map(x => x.catName),
+      datasets: [
+        { label: '선택기간 지출액', data: ccStats.map(x => x.periodAmt), backgroundColor: '#2b4cbe', borderRadius: 3 },
+        { label: '전체 누적 지출액', data: ccStats.map(x => x.allAmt), backgroundColor: '#92add0', borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: '#f0f0f0' } }
+      }
+    }
+  });
 }
 
 function renderMasterSelectsAndLists() {

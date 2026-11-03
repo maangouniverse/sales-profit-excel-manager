@@ -4,6 +4,7 @@ const { createZipBuffer, escXml, colToLetter, dateToSerial, SheetBuilder } = req
 const { buildBarChartXml, buildDoughnutChartXml, buildDrawingXml } = require('./chart_builder');
 const {
   CHANNELS,
+  COMMON_COST_CATEGORIES,
   TARGET_MONTHS,
   CHANNEL_RATES,
   DAILY_SALES,
@@ -283,7 +284,7 @@ function buildSheet1() {
       v: cSales,
       s: 25
     });
-    sh.setCell(r, 13, { f: `IFERROR(L${r}/$L$38,0)`, v: cShare, s: 14 });
+    sh.setCell(r, 13, { f: `IFERROR(L${r}/$L$39,0)`, v: cShare, s: 14 });
     sh.setCell(r, 14, {
       f: `SUMIFS('2_일일매출_입력'!$Q$6:$Q$305,'2_일일매출_입력'!$C$6:$C$305,J${r},'2_일일매출_입력'!$B$6:$B$305,">="&$F$4,'2_일일매출_입력'!$B$6:$B$305,"<="&$G$4)`,
       v: cProfit,
@@ -292,25 +293,71 @@ function buildSheet1() {
     sh.setCell(r, 15, { f: `IFERROR(N${r}/L${r},0)`, v: cMargin, s: 26 });
   });
 
-  sh.setCell(38, 10, { v: '합계', s: 16 });
-  sh.setCell(38, 11, { f: 'SUM(K31:K37)', v: periodOrders, s: 17 });
-  sh.setCell(38, 12, { f: 'SUM(L31:L37)', v: periodActualSales, s: 17 });
-  sh.setCell(38, 13, { f: 'IFERROR(SUM(M31:M37),0)', v: 1, s: 18 });
-  sh.setCell(38, 14, { f: 'SUM(N31:N37)', v: periodNetProfit, s: 17 });
-  sh.setCell(38, 15, { f: 'IFERROR(N38/L38,0)', v: periodMargin, s: 18 });
+  // 39행: 채널별 합계 (8개 채널: 31~38행)
+  sh.setCell(39, 10, { v: '합계', s: 16 });
+  sh.setCell(39, 11, { f: 'SUM(K31:K38)', v: periodOrders, s: 17 });
+  sh.setCell(39, 12, { f: 'SUM(L31:L38)', v: periodActualSales, s: 17 });
+  sh.setCell(39, 13, { f: 'IFERROR(SUM(M31:M38),0)', v: 1, s: 18 });
+  sh.setCell(39, 14, { f: 'SUM(N31:N38)', v: periodNetProfit, s: 17 });
+  sh.setCell(39, 15, { f: 'IFERROR(N39/L39,0)', v: periodMargin, s: 18 });
 
-  // 목표 vs 실제 비교 차트용 요약 테이블 (J40:N41)
-  sh.setCell(40, 10, { v: '구분', s: 4 });
-  sh.setCell(40, 11, { v: '목표매출', s: 4 });
-  sh.setCell(40, 12, { v: '총 매출액', s: 4 });
-  sh.setCell(40, 13, { v: '총 순이익', s: 4 });
-  sh.setCell(40, 14, { v: '최종순이익(공통비후)', s: 4 });
+  // 목표 vs 실제 비교 차트용 요약 테이블 (J41:N42)
+  sh.setCell(41, 10, { v: '구분', s: 4 });
+  sh.setCell(41, 11, { v: '목표매출', s: 4 });
+  sh.setCell(41, 12, { v: '총 매출액', s: 4 });
+  sh.setCell(41, 13, { v: '총 순이익', s: 4 });
+  sh.setCell(41, 14, { v: '최종순이익(공통비후)', s: 4 });
 
-  sh.setCell(41, 10, { v: '전체 매출성과', s: 23 });
-  sh.setCell(41, 11, { f: 'B7', v: periodTarget, s: 25 });
-  sh.setCell(41, 12, { f: 'D7', v: periodActualSales, s: 25 });
-  sh.setCell(41, 13, { f: 'L7', v: periodNetProfit, s: 25 });
-  sh.setCell(41, 14, { f: 'L9', v: periodFinalProfit, s: 25 });
+  sh.setCell(42, 10, { v: '전체 매출성과', s: 23 });
+  sh.setCell(42, 11, { f: 'B7', v: periodTarget, s: 25 });
+  sh.setCell(42, 12, { f: 'D7', v: periodActualSales, s: 25 });
+  sh.setCell(42, 13, { f: 'L7', v: periodNetProfit, s: 25 });
+  sh.setCell(42, 14, { f: 'L9', v: periodFinalProfit, s: 25 });
+
+  // 45~52행: 공통비용 항목별 지출 현황 표 & 그래프 영역
+  sh.setRowHeight(45, 24);
+  sh.setCell(45, 2, { v: '공통비용 항목별 지출 비중 현황 (선택 기간)', s: 2 });
+  sh.setCell(45, 7, { v: '공통비용 항목별 지출 비중 그래프 (실시간 연동)', s: 2 });
+
+  sh.setRowHeight(46, 24);
+  sh.setCell(46, 2, { v: '공통비용 항목', s: 4 });
+  sh.merge('B46:C46');
+  sh.setCell(46, 3, { v: '', s: 4 });
+  sh.setCell(46, 4, { v: '선택기간 지출액', s: 4 });
+  sh.setCell(46, 5, { v: '지출 비중 (%)', s: 4 });
+
+  const commonCostChartCache = {
+    cats: [],
+    amounts: []
+  };
+
+  COMMON_COST_CATEGORIES.forEach((catName, idx) => {
+    const r = 47 + idx; // 47~51행
+    const catAmt = COMMON_COSTS.filter(c => {
+      const s = dateToSerial(c.date);
+      return c.category === catName && s >= defaultStartSerial && s <= defaultEndSerial;
+    }).reduce((a, b) => a + b.amount, 0);
+    const catShare = periodCommonCost > 0 ? catAmt / periodCommonCost : 0;
+
+    commonCostChartCache.cats.push(catName);
+    commonCostChartCache.amounts.push(catAmt);
+
+    sh.setCell(r, 2, { v: catName, s: 23 });
+    sh.setCell(r, 3, { v: '', s: 23 });
+    sh.merge(`B${r}:C${r}`);
+    sh.setCell(r, 4, {
+      f: `SUMIFS('5_목표매출_및_공통비용'!$K$7:$K$25,'5_목표매출_및_공통비용'!$J$7:$J$25,B${r},'5_목표매출_및_공통비용'!$I$7:$I$25,">="&$F$4,'5_목표매출_및_공통비용'!$I$7:$I$25,"<="&$G$4)`,
+      v: catAmt,
+      s: 25
+    });
+    sh.setCell(r, 5, { f: `IFERROR(D${r}/$D$52,0)`, v: catShare, s: 14 });
+  });
+
+  sh.setCell(52, 2, { v: '공통비용 합계', s: 16 });
+  sh.setCell(52, 3, { v: '', s: 16 });
+  sh.merge('B52:C52');
+  sh.setCell(52, 4, { f: 'SUM(D47:D51)', v: periodCommonCost, s: 17 });
+  sh.setCell(52, 5, { f: 'IFERROR(SUM(E47:E51),0)', v: periodCommonCost > 0 ? 1 : 0, s: 18 });
 
   sh.addValidation({
     type: 'list',
@@ -321,7 +368,7 @@ function buildSheet1() {
   });
 
   sh.addCondFormat({
-    sqref: 'L7:L9 F31:F43 N31:N38',
+    sqref: 'L7:L9 F31:F43 N31:N39',
     rules: [{ type: 'cellIs', operator: 'lessThan', formula: '0', dxfId: 0 }]
   });
   sh.addCondFormat({
@@ -331,7 +378,7 @@ function buildSheet1() {
 
   sh.drawingRelId = 'rId1';
 
-  return { sh, monthlyChartCache, channelChartCache };
+  return { sh, monthlyChartCache, channelChartCache, commonCostChartCache };
 }
 
 // ============================================================================
@@ -805,7 +852,7 @@ function buildSheet4() {
     sh.setCell(r, 27, { f: `SUM(X${r}:Z${r})`, v: raw.totalCost, s: 25 });
     sh.setCell(r, 28, { f: `W${r}-AA${r}`, v: raw.netProfit, s: 25 });
 
-    // 좌측 정렬된 메인 표 (B8:P14)
+    // 좌측 정렬된 메인 표 (B8:P15 - 8개 판매채널)
     const st = sortedChannels[idx];
     const share = periodActualSales > 0 ? st.sales / periodActualSales : 0;
     const margin = st.sales > 0 ? st.netProfit / st.sales : 0;
@@ -813,44 +860,44 @@ function buildSheet4() {
     const finalProfit = st.netProfit - allocCommon;
 
     sh.setCell(r, 2, { v: idx + 1, s: 10 });
-    sh.setCell(r, 3, { f: `INDEX($S$8:$S$14,MATCH(LARGE($R$8:$R$14,B${r}),$R$8:$R$14,0))`, v: st.chName, s: 23 });
-    sh.setCell(r, 4, { f: `INDEX($T$8:$T$14,MATCH(LARGE($R$8:$R$14,B${r}),$R$8:$R$14,0))`, v: st.u10, s: 25 });
-    sh.setCell(r, 5, { f: `INDEX($U$8:$U$14,MATCH(LARGE($R$8:$R$14,B${r}),$R$8:$R$14,0))`, v: st.o10, s: 25 });
+    sh.setCell(r, 3, { f: `INDEX($S$8:$S$15,MATCH(LARGE($R$8:$R$15,B${r}),$R$8:$R$15,0))`, v: st.chName, s: 23 });
+    sh.setCell(r, 4, { f: `INDEX($T$8:$T$15,MATCH(LARGE($R$8:$R$15,B${r}),$R$8:$R$15,0))`, v: st.u10, s: 25 });
+    sh.setCell(r, 5, { f: `INDEX($U$8:$U$15,MATCH(LARGE($R$8:$R$15,B${r}),$R$8:$R$15,0))`, v: st.o10, s: 25 });
     sh.setCell(r, 6, { f: `D${r}+E${r}`, v: st.orders, s: 12 });
-    sh.setCell(r, 7, { f: `INDEX($W$8:$W$14,MATCH(LARGE($R$8:$R$14,B${r}),$R$8:$R$14,0))`, v: st.sales, s: 25 });
-    sh.setCell(r, 8, { f: `IFERROR(G${r}/$G$15,0)`, v: share, s: 14 });
-    sh.setCell(r, 9, { f: `INDEX($X$8:$X$14,MATCH(LARGE($R$8:$R$14,B${r}),$R$8:$R$14,0))`, v: st.fee, s: 25 });
-    sh.setCell(r, 10, { f: `INDEX($Y$8:$Y$14,MATCH(LARGE($R$8:$R$14,B${r}),$R$8:$R$14,0))`, v: st.orderCost, s: 25 });
-    sh.setCell(r, 11, { f: `INDEX($Z$8:$Z$14,MATCH(LARGE($R$8:$R$14,B${r}),$R$8:$R$14,0))`, v: st.extra, s: 25 });
+    sh.setCell(r, 7, { f: `INDEX($W$8:$W$15,MATCH(LARGE($R$8:$R$15,B${r}),$R$8:$R$15,0))`, v: st.sales, s: 25 });
+    sh.setCell(r, 8, { f: `IFERROR(G${r}/$G$16,0)`, v: share, s: 14 });
+    sh.setCell(r, 9, { f: `INDEX($X$8:$X$15,MATCH(LARGE($R$8:$R$15,B${r}),$R$8:$R$15,0))`, v: st.fee, s: 25 });
+    sh.setCell(r, 10, { f: `INDEX($Y$8:$Y$15,MATCH(LARGE($R$8:$R$15,B${r}),$R$8:$R$15,0))`, v: st.orderCost, s: 25 });
+    sh.setCell(r, 11, { f: `INDEX($Z$8:$Z$15,MATCH(LARGE($R$8:$R$15,B${r}),$R$8:$R$15,0))`, v: st.extra, s: 25 });
     sh.setCell(r, 12, { f: `SUM(I${r}:K${r})`, v: st.totalCost, s: 12 });
     sh.setCell(r, 13, { f: `G${r}-L${r}`, v: st.netProfit, s: 13 });
     sh.setCell(r, 14, { f: `IFERROR(M${r}/G${r},0)`, v: margin, s: 14 });
     sh.setCell(r, 15, {
-      f: `IF($G$4="매출액 비중 배분",ROUND($I$4*H${r},0),IF($G$4="주문건수 비중 배분",ROUND($I$4*IFERROR(F${r}/$F$15,0),0),0))`,
+      f: `IF($G$4="매출액 비중 배분",ROUND($I$4*H${r},0),IF($G$4="주문건수 비중 배분",ROUND($I$4*IFERROR(F${r}/$F$16,0),0),0))`,
       v: allocCommon,
       s: 12
     });
     sh.setCell(r, 16, { f: `M${r}-O${r}`, v: finalProfit, s: 12 });
   });
 
-  // 15행: 판매채널 합계
-  sh.setCell(15, 2, { v: '합계', s: 16 });
-  sh.setCell(15, 3, { v: `전체 ${CHANNELS.length}개 판매채널`, s: 16 });
-  sh.setCell(15, 4, { f: 'SUM(D8:D14)', v: periodOrdersUnder10, s: 17 });
-  sh.setCell(15, 5, { f: 'SUM(E8:E14)', v: periodOrdersOver10, s: 17 });
-  sh.setCell(15, 6, { f: 'SUM(F8:F14)', v: periodOrders, s: 17 });
-  sh.setCell(15, 7, { f: 'SUM(G8:G14)', v: periodActualSales, s: 17 });
-  sh.setCell(15, 8, { f: 'IFERROR(SUM(H8:H14),0)', v: 1, s: 18 });
-  sh.setCell(15, 9, { f: 'SUM(I8:I14)', v: periodFee, s: 17 });
-  sh.setCell(15, 10, { f: 'SUM(J8:J14)', v: periodOrderCost, s: 17 });
-  sh.setCell(15, 11, { f: 'SUM(K8:K14)', v: periodExtraCost, s: 17 });
-  sh.setCell(15, 12, { f: 'SUM(L8:L14)', v: periodTotalCost, s: 17 });
-  sh.setCell(15, 13, { f: 'G15-L15', v: periodNetProfit, s: 17 });
-  sh.setCell(15, 14, { f: 'IFERROR(M15/G15,0)', v: periodMargin, s: 18 });
-  sh.setCell(15, 15, { f: 'SUM(O8:O14)', v: periodCommonCost, s: 17 });
-  sh.setCell(15, 16, { f: 'M15-O15', v: periodFinalProfit, s: 17 });
+  // 16행: 판매채널 합계 (8개 채널: 8~15행)
+  sh.setCell(16, 2, { v: '합계', s: 16 });
+  sh.setCell(16, 3, { v: `전체 ${CHANNELS.length}개 판매채널`, s: 16 });
+  sh.setCell(16, 4, { f: 'SUM(D8:D15)', v: periodOrdersUnder10, s: 17 });
+  sh.setCell(16, 5, { f: 'SUM(E8:E15)', v: periodOrdersOver10, s: 17 });
+  sh.setCell(16, 6, { f: 'SUM(F8:F15)', v: periodOrders, s: 17 });
+  sh.setCell(16, 7, { f: 'SUM(G8:G15)', v: periodActualSales, s: 17 });
+  sh.setCell(16, 8, { f: 'IFERROR(SUM(H8:H15),0)', v: 1, s: 18 });
+  sh.setCell(16, 9, { f: 'SUM(I8:I15)', v: periodFee, s: 17 });
+  sh.setCell(16, 10, { f: 'SUM(J8:J15)', v: periodOrderCost, s: 17 });
+  sh.setCell(16, 11, { f: 'SUM(K8:K15)', v: periodExtraCost, s: 17 });
+  sh.setCell(16, 12, { f: 'SUM(L8:L15)', v: periodTotalCost, s: 17 });
+  sh.setCell(16, 13, { f: 'G16-L16', v: periodNetProfit, s: 17 });
+  sh.setCell(16, 14, { f: 'IFERROR(M16/G16,0)', v: periodMargin, s: 18 });
+  sh.setCell(16, 15, { f: 'SUM(O8:O15)', v: periodCommonCost, s: 17 });
+  sh.setCell(16, 16, { f: 'M16-O16', v: periodFinalProfit, s: 17 });
 
-  sh.setCell(17, 2, { v: '📈 판매채널별 매출·순이익 비교 그래프', s: 2 });
+  sh.setCell(18, 2, { v: '📈 판매채널별 매출·순이익 비교 그래프', s: 2 });
 
   sh.addValidation({
     type: 'list',
@@ -861,7 +908,7 @@ function buildSheet4() {
   });
 
   sh.addCondFormat({
-    sqref: 'M8:P15',
+    sqref: 'M8:P16',
     rules: [{ type: 'cellIs', operator: 'lessThan', formula: '0', dxfId: 0 }]
   });
 
@@ -871,7 +918,7 @@ function buildSheet4() {
 }
 
 // ============================================================================
-// 시트 5: 5_목표매출_및_공통비용 (2026년 11월 ~ 2027년 10월 + 목표매출 합계 강조)
+// 시트 5: 5_목표매출_및_공통비용 (2026년 11월 ~ 2027년 10월 + 공통비용 항목별 그래프)
 // ============================================================================
 function buildSheet5() {
   const sh = new SheetBuilder('5_목표매출_및_공통비용', {
@@ -896,7 +943,7 @@ function buildSheet5() {
 
   sh.setRowHeight(3, 34);
   sh.setCell(3, 2, {
-    v: '💡 [목표설정 기간: 2026년 11월 ~ 2027년 10월] 노란색 셀에 월별 목표매출을 입력하면 상단과 하단에 [12개월 목표매출 총합계]와 [현재 조회기간 목표매출 합계]가 자동 계산됩니다.',
+    v: '💡 [목표설정 기간: 2026년 11월 ~ 2027년 10월] 노란색 셀에 월별 목표매출과 공통비용을 입력하면 목표매출 총합계와 공통비용 항목별 지출 그래프가 자동 갱신됩니다.',
     s: 22
   });
   sh.merge('B3:N3');
@@ -1016,6 +1063,63 @@ function buildSheet5() {
   });
   sh.setCell(26, 14, { v: '← 대시보드 및 손익분석 시트에 자동 반영됨', s: 16 });
 
+  // 28~35행: 공통비용 항목별 지출 집계표 & 그래프 영역 (시트 5)
+  sh.setRowHeight(28, 24);
+  sh.setCell(28, 2, { v: '📊 공통비용 항목별 지출 분석표 (선택기간 & 전체누적)', s: 2 });
+  sh.setCell(28, 9, { v: '📈 공통비용 항목별 지출 비중 및 금액 비교 그래프', s: 2 });
+
+  sh.setRowHeight(29, 24);
+  sh.setCell(29, 2, { v: '공통비용 항목명', s: 4 });
+  sh.merge('B29:C29');
+  sh.setCell(29, 3, { v: '', s: 4 });
+  sh.setCell(29, 4, { v: '선택기간 지출액 (원)', s: 4 });
+  sh.setCell(29, 5, { v: '선택기간 비중 (%)', s: 4 });
+  sh.setCell(29, 6, { v: '전체 누적 지출액 (원)', s: 4 });
+  sh.setCell(29, 7, { v: '전체 누적 비중 (%)', s: 4 });
+
+  const sheet5CommonCache = {
+    cats: [],
+    periodAmts: [],
+    totalAmts: []
+  };
+
+  COMMON_COST_CATEGORIES.forEach((catName, idx) => {
+    const r = 30 + idx; // 30~34행
+    const pAmt = COMMON_COSTS.filter(c => {
+      const s = dateToSerial(c.date);
+      return c.category === catName && s >= defaultStartSerial && s <= defaultEndSerial;
+    }).reduce((a, b) => a + b.amount, 0);
+    const tAmt = COMMON_COSTS.filter(c => c.category === catName).reduce((a, b) => a + b.amount, 0);
+
+    sheet5CommonCache.cats.push(catName);
+    sheet5CommonCache.periodAmts.push(pAmt);
+    sheet5CommonCache.totalAmts.push(tAmt);
+
+    sh.setCell(r, 2, { v: catName, s: 23 });
+    sh.setCell(r, 3, { v: '', s: 23 });
+    sh.merge(`B${r}:C${r}`);
+    sh.setCell(r, 4, {
+      f: `SUMIFS($K$7:$K$25,$J$7:$J$25,B${r},$I$7:$I$25,">="&'1_매출손익_대시보드'!$F$4,$I$7:$I$25,"<="&'1_매출손익_대시보드'!$G$4)`,
+      v: pAmt,
+      s: 25
+    });
+    sh.setCell(r, 5, { f: `IFERROR(D${r}/$D$35,0)`, v: periodCommonCost > 0 ? pAmt / periodCommonCost : 0, s: 14 });
+    sh.setCell(r, 6, {
+      f: `SUMIF($J$7:$J$25,B${r},$K$7:$K$25)`,
+      v: tAmt,
+      s: 25
+    });
+    sh.setCell(r, 7, { f: `IFERROR(F${r}/$F$35,0)`, v: allCommonSum > 0 ? tAmt / allCommonSum : 0, s: 14 });
+  });
+
+  sh.setCell(35, 2, { v: '공통비용 합계', s: 16 });
+  sh.setCell(35, 3, { v: '', s: 16 });
+  sh.merge('B35:C35');
+  sh.setCell(35, 4, { f: 'SUM(D30:D34)', v: periodCommonCost, s: 17 });
+  sh.setCell(35, 5, { f: 'IFERROR(SUM(E30:E34),0)', v: periodCommonCost > 0 ? 1 : 0, s: 18 });
+  sh.setCell(35, 6, { f: 'SUM(F30:F34)', v: allCommonSum, s: 17 });
+  sh.setCell(35, 7, { f: 'IFERROR(SUM(G30:G34),0)', v: allCommonSum > 0 ? 1 : 0, s: 18 });
+
   sh.addValidation({
     type: 'list',
     sqref: 'K4:L4',
@@ -1024,7 +1128,17 @@ function buildSheet5() {
     prompt: '채널별 손익 분석 시 공통비용을 어떤 기준으로 배분할지 선택하세요.'
   });
 
-  return sh;
+  sh.addValidation({
+    type: 'list',
+    sqref: 'J7:J25',
+    formula1: `"${COMMON_COST_CATEGORIES.join(',')}"`,
+    promptTitle: '공통비용 항목 선택',
+    prompt: '공통비용 항목을 선택하거나 직접 입력하세요.'
+  });
+
+  sh.drawingRelId = 'rId1';
+
+  return { sh, sheet5CommonCache };
 }
 
 // ============================================================================
@@ -1055,7 +1169,7 @@ function buildSheet6() {
   for (let c = 3; c <= 5; c++) sh.setCell(3, c, { v: '', s: 22 });
 
   sh.setRowHeight(5, 26);
-  sh.setCell(5, 2, { v: '🛒 판매채널 등록 목록\n(기본 7종 + 추가 가능)', s: 3 });
+  sh.setCell(5, 2, { v: '🛒 판매채널 등록 목록\n(기본 8종(공판장 포함) + 추가 가능)', s: 3 });
   sh.setCell(5, 4, { v: '📌 구분 / 핵심 주제', s: 4 });
   sh.setCell(5, 5, { v: '📖 상세 사용 방법 및 계산 기준 안내 (비개발자 맞춤 가이드)', s: 4 });
 
@@ -1069,7 +1183,7 @@ function buildSheet6() {
     ['2. 10kg 미만 / 10kg 이상 주문 구분', '• [2_일일매출_입력] 시트에서 하루 주문을 [10kg 미만 주문건수]와 [10kg 이상 주문건수]로 나누어 입력합니다.\n• 무게 구간별로 택배비가 다르게 설정되어 있어 각 구간 건수에 맞는 택배비와 부자재비(박스+포장비닐+리플렛)가 자동 합산됩니다.'],
     ['3. 박스·포장비닐·리플렛 비용 설정', '• [3_채널별_비용설정] 시트에서 채널별·기간별로 [10kg 미만 배송비], [10kg 이상 배송비], 그리고 주문 1건당 [박스 비용], [포장비닐 비용], [리플렛 비용]을 각각 등록합니다.\n• 10kg 미만 1건당 비용 = 10kg 미만 배송비 + 박스 + 포장비닐 + 리플렛\n• 10kg 이상 1건당 비용 = 10kg 이상 배송비 + 박스 + 포장비닐 + 리플렛'],
     ['4. 비용 변경 시 기간 이력 관리', '• 택배비나 박스비, 수수료율이 바뀌면 기존 설정 행을 덮어쓰지 마세요.\n• 기존 설정의 [적용 종료일]을 입력한 뒤, 아래 새 행에 [새로운 적용 시작일]과 변경된 단가를 등록하면 과거 매출에는 당시 단가가 그대로 유지됩니다.'],
-    ['5. 계산 공식 요약', '• 매출액 기준 수수료 = 일일 매출액 × 해당 날짜의 채널 수수료율\n• 주문건수에 따른 비용 = (10kg 미만 주문건수 × 10kg 미만 1건당 비용) + (10kg 이상 주문건수 × 10kg 이상 1건당 비용)\n• 총비용 = 매출액 기준 수수료 + 주문건수에 따른 비용 + 추가 비용\n• 순이익 = 일일 매출액 − 총비용  |  순이익률 = 순이익 ÷ 일일 매출액 × 100']
+    ['5. 공판장 채널 및 공통비용 그래프', '• 기본 판매채널에 [공판장]을 포함한 8개 채널(농라, 스마트스토어, 카톡, 고흥몰, 남도장터, 로컬푸드, 공판장, 기타)이 등록되어 있습니다.\n• [1_매출손익_대시보드]와 [5_목표매출_및_공통비용] 시트에서 공통비용 항목별(월 광고선전비, 임대료, 인건비, 공과금, 기타) 지출 비중 도넛 그래프와 금액 비교 그래프를 바로 확인할 수 있습니다.']
   ];
 
   guides.forEach(([title, desc], idx) => {
@@ -1092,25 +1206,25 @@ function buildSheet6() {
 // 전체 워크북 생성
 // ============================================================================
 function generateAll() {
-  const { sh: sheet1, monthlyChartCache, channelChartCache } = buildSheet1();
+  const { sh: sheet1, monthlyChartCache, channelChartCache, commonCostChartCache } = buildSheet1();
   const sheet2 = buildSheet2();
   const sheet3 = buildSheet3();
   const { sh: sheet4, sortedChannels } = buildSheet4();
-  const sheet5 = buildSheet5();
+  const { sh: sheet5, sheet5CommonCache } = buildSheet5();
   const sheet6 = buildSheet6();
 
   const sheets = [sheet1, sheet2, sheet3, sheet4, sheet5, sheet6];
 
   const chart1Xml = buildBarChartXml({
     title: '전체 매출성과 (목표매출 vs 총 매출액 vs 총 순이익)',
-    categoriesFormula: "'1_매출손익_대시보드'!$K$40:$N$40",
+    categoriesFormula: "'1_매출손익_대시보드'!$K$41:$N$41",
     categoriesCache: ['목표매출', '총 매출액', '총 순이익', '최종순이익(공통비후)'],
     seriesList: [
       {
         name: '선택기간 실적 (원)',
-        nameFormula: "'1_매출손익_대시보드'!$J$41",
+        nameFormula: "'1_매출손익_대시보드'!$J$42",
         color: '2B4CBE',
-        valuesFormula: "'1_매출손익_대시보드'!$K$41:$N$41",
+        valuesFormula: "'1_매출손익_대시보드'!$K$42:$N$42",
         valuesCache: [periodTarget, periodActualSales, periodNetProfit, periodFinalProfit]
       }
     ]
@@ -1148,31 +1262,31 @@ function generateAll() {
 
   const chart3Xml = buildDoughnutChartXml({
     title: '판매채널별 매출 비중 (금액 및 비율 %)',
-    categoriesFormula: "'1_매출손익_대시보드'!$J$31:$J$37",
+    categoriesFormula: "'1_매출손익_대시보드'!$J$31:$J$38",
     categoriesCache: channelChartCache.cats,
     seriesNameFormula: "'1_매출손익_대시보드'!$L$30",
     seriesName: '매출액 (원)',
-    valuesFormula: "'1_매출손익_대시보드'!$L$31:$L$37",
+    valuesFormula: "'1_매출손익_대시보드'!$L$31:$L$38",
     valuesCache: channelChartCache.sales
   });
 
   const chart4Xml = buildBarChartXml({
     title: '판매채널별 순이익 비교 (공통비 전 vs 후)',
-    categoriesFormula: "'4_판매채널별_손익분석'!$C$8:$C$14",
+    categoriesFormula: "'4_판매채널별_손익분석'!$C$8:$C$15",
     categoriesCache: sortedChannels.map(c => c.chName),
     seriesList: [
       {
         name: '순이익(공통비 전)',
         nameFormula: "'4_판매채널별_손익분석'!$M$7",
         color: '2B4CBE',
-        valuesFormula: "'4_판매채널별_손익분석'!$M$8:$M$14",
+        valuesFormula: "'4_판매채널별_손익분석'!$M$8:$M$15",
         valuesCache: sortedChannels.map(c => c.netProfit)
       },
       {
         name: '최종 순이익(공통비 후)',
         nameFormula: "'4_판매채널별_손익분석'!$P$7",
         color: 'C5D185',
-        valuesFormula: "'4_판매채널별_손익분석'!$P$8:$P$14",
+        valuesFormula: "'4_판매채널별_손익분석'!$P$8:$P$15",
         valuesCache: sortedChannels.map(c => {
           const share = periodActualSales > 0 ? c.sales / periodActualSales : 0;
           return c.netProfit - Math.round(periodCommonCost * share);
@@ -1183,22 +1297,64 @@ function generateAll() {
 
   const chart5Xml = buildBarChartXml({
     title: '판매채널별 매출액 및 순이익 비교',
-    categoriesFormula: "'4_판매채널별_손익분석'!$C$8:$C$14",
+    categoriesFormula: "'4_판매채널별_손익분석'!$C$8:$C$15",
     categoriesCache: sortedChannels.map(c => c.chName),
     seriesList: [
       {
         name: '매출액 (원)',
         nameFormula: "'4_판매채널별_손익분석'!$G$7",
         color: '2B4CBE',
-        valuesFormula: "'4_판매채널별_손익분석'!$G$8:$G$14",
+        valuesFormula: "'4_판매채널별_손익분석'!$G$8:$G$15",
         valuesCache: sortedChannels.map(c => c.sales)
       },
       {
         name: '순이익(공통비 전)',
         nameFormula: "'4_판매채널별_손익분석'!$M$7",
         color: 'C5D185',
-        valuesFormula: "'4_판매채널별_손익분석'!$M$8:$M$14",
+        valuesFormula: "'4_판매채널별_손익분석'!$M$8:$M$15",
         valuesCache: sortedChannels.map(c => c.netProfit)
+      }
+    ]
+  });
+
+  const chart6Xml = buildDoughnutChartXml({
+    title: '공통비용 항목별 지출 비중 (선택기간 금액 및 비율 %)',
+    categoriesFormula: "'1_매출손익_대시보드'!$B$47:$B$51",
+    categoriesCache: commonCostChartCache.cats,
+    seriesNameFormula: "'1_매출손익_대시보드'!$D$46",
+    seriesName: '선택기간 지출액',
+    valuesFormula: "'1_매출손익_대시보드'!$D$47:$D$51",
+    valuesCache: commonCostChartCache.amounts
+  });
+
+  const chart7Xml = buildDoughnutChartXml({
+    title: '공통비용 항목별 지출 비중 (선택 기간)',
+    categoriesFormula: "'5_목표매출_및_공통비용'!$B$30:$B$34",
+    categoriesCache: sheet5CommonCache.cats,
+    seriesNameFormula: "'5_목표매출_및_공통비용'!$D$29",
+    seriesName: '선택기간 지출액 (원)',
+    valuesFormula: "'5_목표매출_및_공통비용'!$D$30:$D$34",
+    valuesCache: sheet5CommonCache.periodAmts
+  });
+
+  const chart8Xml = buildBarChartXml({
+    title: '공통비용 항목별 지출액 비교 (선택기간 vs 전체누적)',
+    categoriesFormula: "'5_목표매출_및_공통비용'!$B$30:$B$34",
+    categoriesCache: sheet5CommonCache.cats,
+    seriesList: [
+      {
+        name: '선택기간 지출액 (원)',
+        nameFormula: "'5_목표매출_및_공통비용'!$D$29",
+        color: '2B4CBE',
+        valuesFormula: "'5_목표매출_및_공통비용'!$D$30:$D$34",
+        valuesCache: sheet5CommonCache.periodAmts
+      },
+      {
+        name: '전체 누적 지출액 (원)',
+        nameFormula: "'5_목표매출_및_공통비용'!$F$29",
+        color: '92ADD0',
+        valuesFormula: "'5_목표매출_및_공통비용'!$F$30:$F$34",
+        valuesCache: sheet5CommonCache.totalAmts
       }
     ]
   });
@@ -1206,12 +1362,18 @@ function generateAll() {
   const drawing1Xml = buildDrawingXml([
     { fromCol: 1, fromRow: 10, toCol: 5, toRow: 27, relId: 'rId1' },
     { fromCol: 5, fromRow: 10, toCol: 10, toRow: 27, relId: 'rId2' },
-    { fromCol: 10, fromRow: 10, toCol: 15, toRow: 27, relId: 'rId3' }
+    { fromCol: 10, fromRow: 10, toCol: 15, toRow: 27, relId: 'rId3' },
+    { fromCol: 6, fromRow: 45, toCol: 15, toRow: 59, relId: 'rId4' }
   ]);
 
   const drawing2Xml = buildDrawingXml([
-    { fromCol: 1, fromRow: 18, toCol: 8, toRow: 34, relId: 'rId1' },
-    { fromCol: 8, fromRow: 18, toCol: 16, toRow: 34, relId: 'rId2' }
+    { fromCol: 1, fromRow: 19, toCol: 8, toRow: 35, relId: 'rId1' },
+    { fromCol: 8, fromRow: 19, toCol: 16, toRow: 35, relId: 'rId2' }
+  ]);
+
+  const drawing3Xml = buildDrawingXml([
+    { fromCol: 8, fromRow: 29, toCol: 11, toRow: 44, relId: 'rId1' },
+    { fromCol: 11, fromRow: 29, toCol: 14, toRow: 44, relId: 'rId2' }
   ]);
 
   const files = [];
@@ -1232,11 +1394,15 @@ function generateAll() {
   <Override PartName="/xl/worksheets/sheet6.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>
   <Override PartName="/xl/drawings/drawing2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>
+  <Override PartName="/xl/drawings/drawing3.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>
   <Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>
   <Override PartName="/xl/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>
   <Override PartName="/xl/charts/chart3.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>
   <Override PartName="/xl/charts/chart4.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>
   <Override PartName="/xl/charts/chart5.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>
+  <Override PartName="/xl/charts/chart6.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>
+  <Override PartName="/xl/charts/chart7.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>
+  <Override PartName="/xl/charts/chart8.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>
 </Types>`
   });
 
@@ -1291,8 +1457,17 @@ function generateAll() {
 </Relationships>`
   });
 
+  files.push({
+    name: 'xl/worksheets/_rels/sheet5.xml.rels',
+    data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing3.xml"/>
+</Relationships>`
+  });
+
   files.push({ name: 'xl/drawings/drawing1.xml', data: drawing1Xml });
   files.push({ name: 'xl/drawings/drawing2.xml', data: drawing2Xml });
+  files.push({ name: 'xl/drawings/drawing3.xml', data: drawing3Xml });
 
   files.push({
     name: 'xl/drawings/_rels/drawing1.xml.rels',
@@ -1301,6 +1476,7 @@ function generateAll() {
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart1.xml"/>
   <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart2.xml"/>
   <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart3.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart6.xml"/>
 </Relationships>`
   });
 
@@ -1313,11 +1489,23 @@ function generateAll() {
 </Relationships>`
   });
 
+  files.push({
+    name: 'xl/drawings/_rels/drawing3.xml.rels',
+    data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart7.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart8.xml"/>
+</Relationships>`
+  });
+
   files.push({ name: 'xl/charts/chart1.xml', data: chart1Xml });
   files.push({ name: 'xl/charts/chart2.xml', data: chart2Xml });
   files.push({ name: 'xl/charts/chart3.xml', data: chart3Xml });
   files.push({ name: 'xl/charts/chart4.xml', data: chart4Xml });
   files.push({ name: 'xl/charts/chart5.xml', data: chart5Xml });
+  files.push({ name: 'xl/charts/chart6.xml', data: chart6Xml });
+  files.push({ name: 'xl/charts/chart7.xml', data: chart7Xml });
+  files.push({ name: 'xl/charts/chart8.xml', data: chart8Xml });
 
   const zipBuf = createZipBuffer(files);
   const outPath = path.join(__dirname, '거래처별_매출순이익_관리프로그램.xlsx');

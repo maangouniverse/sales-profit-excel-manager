@@ -1,6 +1,6 @@
 const { dateToSerial } = require('./xlsx_writer');
 
-// 1. 기본 판매채널 7종
+// 1. 기본 판매채널 8종 (공판장 추가)
 const CHANNELS = [
   '농라',
   '스마트스토어',
@@ -8,7 +8,17 @@ const CHANNELS = [
   '고흥몰',
   '남도장터',
   '로컬푸드',
+  '공판장',
   '기타'
+];
+
+// 공통비용 기본 항목 목록 (공통비용 항목별 그래프 및 집계용)
+const COMMON_COST_CATEGORIES = [
+  '월 광고선전비',
+  '작업장/창고 임대료',
+  '인건비/작업비',
+  '공과금/통신/프로그램',
+  '기타 공통고정비'
 ];
 
 // 2. 목표설정 기간: 2026년 11월 ~ 2027년 10월 (12개월)
@@ -122,6 +132,19 @@ const CHANNEL_RATES = [
     note: '[예시] 로컬푸드 직매장 납품 (택배비 없음, 소포장 박스·비닐·리플렛만 적용)'
   },
   {
+    channel: '공판장',
+    start: '2026-11-01',
+    end: '',
+    feeRate: 0.070,
+    shipUnder10: 1000,
+    shipOver10: 1500,
+    boxCost: 650,
+    vinylCost: 100,
+    leafletCost: 0,
+    etcCost: 0,
+    note: '[예시] 농산물 공판장 출하 (상장수수료 7%, 계통운송비 및 박스·속비닐 반영)'
+  },
+  {
     channel: '기타',
     start: '2026-11-01',
     end: '',
@@ -150,11 +173,13 @@ const DAILY_SALES = [
   { date: '2026-11-22', channel: '기타', ordersUnder10: 12, ordersOver10: 8, sales: 750000, extraCost: 0, note: '[예시] 전화 주문 단체 발송' },
   { date: '2026-11-25', channel: '기타', ordersUnder10: 15, ordersOver10: 10, sales: 95000, extraCost: 35000, note: '[적자 구분 예시] 파격 샘플행사 및 파손 재발송비로 인한 일시 적자' },
   { date: '2026-11-27', channel: '고흥몰', ordersUnder10: 25, ordersOver10: 12, sales: 1520000, extraCost: 0, note: '[예시] 고흥몰 베스트 상품전' },
+  { date: '2026-11-28', channel: '공판장', ordersUnder10: 30, ordersOver10: 40, sales: 2100000, extraCost: 0, note: '[예시] 공판장 경매 대량 출하 (10kg 이상 비중 높음)' },
   { date: '2026-11-29', channel: '카톡', ordersUnder10: 20, ordersOver10: 8, sales: 1120000, extraCost: 0, note: '[예시] 월말 카톡 재구매 주문' },
 
   // 2026년 12월
   { date: '2026-12-05', channel: '스마트스토어', ordersUnder10: 45, ordersOver10: 20, sales: 2850000, extraCost: 0, note: '[예시] 연말 선물세트 주문' },
   { date: '2026-12-12', channel: '농라', ordersUnder10: 50, ordersOver10: 25, sales: 3400000, extraCost: 0, note: '[예시] 겨울철 인기 특산물 공구' },
+  { date: '2026-12-18', channel: '공판장', ordersUnder10: 35, ordersOver10: 50, sales: 2650000, extraCost: 0, note: '[예시] 12월 공판장 정기 출하' },
   { date: '2026-12-20', channel: '남도장터', ordersUnder10: 38, ordersOver10: 18, sales: 2420000, extraCost: 0, note: '[예시] 연말 감사 기획전' },
   { date: '2026-12-28', channel: '고흥몰', ordersUnder10: 40, ordersOver10: 15, sales: 2380000, extraCost: 0, note: '[예시] 해맞이 특산품 행사' },
 
@@ -172,9 +197,11 @@ const DAILY_SALES = [
 
 // 5. 월별 공통비용 (2026년 11월 ~ 2027년 2월 예시)
 const COMMON_COSTS = [
+  { date: '2026-11-15', category: '인건비/작업비', amount: 350000, note: '[예시] 11월 선별·포장 일용직 작업비' },
   { date: '2026-11-25', category: '월 광고선전비', amount: 300000, note: '[예시] 11월 키워드 및 배너 광고비' },
   { date: '2026-11-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 11월 저온창고 임대료' },
-  { date: '2026-11-28', category: '공과금/통신/프로그램', amount: 100000, note: '[예시] 11월 전기료 및 송장프로그램' },
+  { date: '2026-11-28', category: '공과금/통신/프로그램', amount: 120000, note: '[예시] 11월 전기료 및 송장프로그램' },
+  { date: '2026-11-30', category: '기타 공통고정비', amount: 80000, note: '[예시] 11월 작업장 소모품 및 다과비' },
   { date: '2026-12-25', category: '월 광고선전비', amount: 350000, note: '[예시] 12월 연말 선물세트 광고비' },
   { date: '2026-12-25', category: '작업장/창고 임대료', amount: 400000, note: '[예시] 12월 저온창고 임대료' },
   { date: '2027-01-25', category: '월 광고선전비', amount: 400000, note: '[예시] 1월 설 명절 집중 광고비' },
@@ -360,6 +387,7 @@ function buildStylesXml() {
 
 module.exports = {
   CHANNELS,
+  COMMON_COST_CATEGORIES,
   TARGET_MONTHS,
   CHANNEL_RATES,
   DAILY_SALES,

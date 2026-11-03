@@ -238,6 +238,45 @@
           </div>
         </div>
       </div>
+
+      <hr class="section-divider" />
+
+      <!-- 최하단: 공통비용 항목별 지출 비중 현황 & 그래프 (실적자동계산2.png 우측 하단 '항목별 지출 비중' 스타일) -->
+      <div class="top5-showcase-grid">
+        <div class="top5-block">
+          <h3 class="section-heading">공통비용 항목별 지출 비중 (선택 기간)</h3>
+          <div class="top5-inner-grid">
+            <div>
+              <table class="clean-rank-table" id="dashboardCommonCostTable">
+                <thead>
+                  <tr>
+                    <th style="width:55px;">No</th>
+                    <th>공통비용 항목명</th>
+                    <th class="num">지출액 (원)</th>
+                    <th class="num">비중</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot></tfoot>
+              </table>
+            </div>
+            <div class="soft-card doughnut-wrap-card">
+              <div class="chart-box-doughnut">
+                <canvas id="chartCommonCostShare"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="top5-block">
+          <h3 class="section-heading">공통비용 항목별 지출 금액 비교 그래프 (선택기간 vs 전체누적)</h3>
+          <div class="soft-card">
+            <div class="chart-box-doughnut" style="height:255px;">
+              <canvas id="chartCommonCostBar"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ================================================================== -->
@@ -591,7 +630,14 @@
           </div>
           <form id="addCommonCostForm" class="inline-add-form">
             <input type="date" id="inCommonDate" class="input-field yellow-input date-clickable" value="2026-11-30" required />
-            <input type="text" id="inCommonCat" class="input-field yellow-input" placeholder="항목 (예: 월 광고비)" required />
+            <input type="text" id="inCommonCat" list="commonCostCatList" class="input-field yellow-input" placeholder="항목 선택/입력 (예: 월 광고선전비)" required />
+            <datalist id="commonCostCatList">
+              <option value="월 광고선전비"></option>
+              <option value="작업장/창고 임대료"></option>
+              <option value="인건비/작업비"></option>
+              <option value="공과금/통신/프로그램"></option>
+              <option value="기타 공통고정비"></option>
+            </datalist>
             <input type="number" id="inCommonAmt" class="input-field yellow-input" placeholder="금액(원)" min="0" step="1000" required />
             <input type="text" id="inCommonNote" class="input-field yellow-input" placeholder="비고 메모" />
             <button type="submit" class="btn btn-primary">➕ 추가</button>
@@ -614,6 +660,49 @@
           </div>
         </div>
       </div>
+
+      <hr class="section-divider" />
+
+      <!-- 시트 5 하단: 공통비용 항목별 지출 집계표 & 그래프 -->
+      <div class="two-col-grid">
+        <div class="soft-card">
+          <div class="card-header">
+            <h3>📊 공통비용 항목별 지출 집계표 (선택기간 & 전체누적)</h3>
+            <span class="badge-unit">항목별 금액 및 비중 자동 계산</span>
+          </div>
+          <div class="table-responsive">
+            <table class="sheet-table" id="tab5CommonCategoryTable">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>공통비용 항목명</th>
+                  <th class="num">선택기간 지출액 (원)</th>
+                  <th class="num">선택기간 비중</th>
+                  <th class="num">전체 누적 지출액 (원)</th>
+                  <th class="num">전체 누적 비중</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="soft-card">
+          <div class="card-header">
+            <h3>📈 공통비용 항목별 지출 비중 및 금액 그래프</h3>
+            <span class="badge-unit">단위: 원 / %</span>
+          </div>
+          <div class="top5-inner-grid" style="align-items:center;">
+            <div class="chart-box-doughnut" style="height:240px;">
+              <canvas id="chartTab5CommonDoughnut"></canvas>
+            </div>
+            <div class="chart-box-doughnut" style="height:240px;">
+              <canvas id="chartTab5CommonBar"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ================================================================== -->
@@ -624,7 +713,7 @@
         <div class="soft-card">
           <div class="card-header">
             <h3>🛒 판매채널 등록 관리 (드롭다운 연동)</h3>
-            <span class="badge-unit">기본 7종 + 신규 채널 추가 가능</span>
+            <span class="badge-unit">기본 8종(공판장 포함) + 신규 채널 추가 가능</span>
           </div>
           <form id="addChannelMasterForm" class="inline-add-form">
             <input type="text" id="inNewChannelName" class="input-field yellow-input" placeholder="새로운 판매채널명 입력" required />
