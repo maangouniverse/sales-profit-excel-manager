@@ -25,6 +25,12 @@
   padding: 0;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-page);
@@ -861,6 +867,24 @@ body {
   margin-left: 4px;
 }
 
+.cell-value-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.perf-hero-grid > *,
+.top5-showcase-grid > *,
+.top5-inner-grid > *,
+.two-col-grid > *,
+.perf-mini-grid > *,
+.target-summary-strip > *,
+.input-grid-form > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* 저장 완료 알림 토스트 배너 */
 .save-toast {
   position: fixed;
@@ -894,6 +918,552 @@ body {
   .top5-inner-grid,
   .two-col-grid,
   .target-summary-strip {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  /* 상단 헤더 모바일 세로 정렬 및 터치 친화적 버튼 크기 유지 */
+  .top-header {
+    position: relative;
+  }
+
+  .header-inner {
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .brand-area h1 {
+    font-size: 18px;
+    line-height: 1.38;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  .sheet-subtitle {
+    display: block;
+    margin-left: 0;
+    margin-top: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--royal-blue);
+  }
+
+  .brand-area p {
+    font-size: 13.5px;
+    line-height: 1.5;
+    margin-top: 6px;
+    word-break: keep-all;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .header-actions .save-status-badge,
+  .header-actions .btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+  }
+
+  /* 탭 메뉴 모바일 세로 스택 정렬 (화면 밖 잘림 방지 및 누르기 편한 크기) */
+  .sheet-tabs {
+    padding: 0 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-x: visible;
+  }
+
+  .tab-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid #dfe3e8;
+    text-align: left;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  /* 메인 레이아웃 및 카드 여백 조정 */
+  .main-container {
+    margin: 14px auto 44px;
+    padding: 0 14px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .soft-card {
+    padding: 16px 14px;
+    margin-bottom: 16px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .section-heading {
+    font-size: 16px;
+    line-height: 1.38;
+    word-break: keep-all;
+  }
+
+  .section-divider {
+    margin: 20px 0;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .card-header h3 {
+    font-size: 15px;
+    line-height: 1.4;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  .card-header h3 .badge-unit {
+    display: block;
+    margin-left: 0 !important;
+    margin-top: 4px;
+    font-size: 12.5px;
+  }
+
+  .header-right-tools {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .header-right-tools .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    min-height: 44px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .header-right-tools .checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .header-right-tools .btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  /* 상단 기간 필터바 모바일 세로 정렬 */
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .filter-item {
+    width: 100%;
+  }
+
+  .filter-item label {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .filter-item .input-select,
+  .filter-item .input-field,
+  .filter-item .calc-badge {
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
+    padding: 9px 12px;
+    display: flex;
+    align-items: center;
+  }
+
+  .inline-inputs {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .inline-inputs > span {
+    text-align: center;
+    font-weight: 700;
+    color: #666666;
+    line-height: 1.2;
+  }
+
+  .date-picker-wrap {
+    width: 100%;
+  }
+
+  .date-picker-wrap .input-field {
+    width: 100%;
+  }
+
+  .health-banner {
+    width: 100%;
+    align-items: flex-start;
+    padding: 12px;
+    font-size: 13.5px;
+  }
+
+  .health-text strong {
+    font-size: 14px;
+  }
+
+  .health-text span {
+    font-size: 12.5px;
+    margin-top: 2px;
+  }
+
+  /* 대시보드 요약 카드 모바일 세로 정렬 */
+  .perf-hero-grid {
+    gap: 16px;
+  }
+
+  .perf-stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 16px 22px 16px 16px;
+  }
+
+  .perf-stat-label {
+    font-size: 14px;
+  }
+
+  .perf-stat-value {
+    font-size: 22px;
+    margin-right: 0;
+    word-break: break-all;
+  }
+
+  .perf-mini-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .perf-mini-card {
+    padding: 14px 16px;
+    gap: 4px;
+  }
+
+  .mini-label {
+    font-size: 13px;
+  }
+
+  .mini-val {
+    font-size: 18px;
+  }
+
+  .mini-sub {
+    font-size: 13px;
+  }
+
+  .chart-box-hero,
+  .chart-box-doughnut,
+  .chart-box-tall {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* 4열 요약 랭킹 테이블 모바일 최적화 */
+  .clean-rank-table {
+    width: 100%;
+    font-size: 13.5px;
+  }
+
+  .clean-rank-table thead th,
+  .clean-rank-table tbody td,
+  .clean-rank-table tfoot td {
+    padding: 10px 8px;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  /* 폼 입력 영역 모바일 1열 세로 정렬 및 큰 터치 영역 유지 */
+  .info-alert {
+    padding: 14px;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+
+  .input-grid-form {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .form-field label {
+    font-size: 13.5px;
+    margin-bottom: 6px;
+  }
+
+  .form-field .input-field,
+  .form-field .input-select,
+  .form-field .btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 15px;
+    padding: 9px 12px;
+  }
+
+  .inline-add-form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .inline-add-form .input-field,
+  .inline-add-form .btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 15px;
+    padding: 9px 12px;
+  }
+
+  /* 시트 4 컨트롤 바 모바일 세로 정렬 */
+  .control-strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .strip-left strong {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .strip-left span {
+    display: block;
+    font-size: 13.5px;
+    color: #555555;
+  }
+
+  .strip-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .strip-right label {
+    font-size: 13.5px;
+    margin-top: 2px;
+  }
+
+  .strip-right .input-select {
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  /* 시트 5 목표매출 요약 배너 */
+  .target-summary-strip {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .target-sum-box span {
+    font-size: 13px;
+  }
+
+  .target-sum-box strong {
+    font-size: 18px;
+    word-break: break-all;
+  }
+
+  /* 열이 많은 표(.sheet-table) 모바일 카드형 변환 + 표 내부 스크롤 컨테이너 보호 */
+  .table-responsive {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sheet-table,
+  .sheet-table tbody,
+  .sheet-table tfoot {
+    display: block;
+    width: 100%;
+  }
+
+  .sheet-table thead {
+    display: none;
+  }
+
+  .sheet-table tbody tr,
+  .sheet-table tfoot tr {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #dfe3e8;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.035);
+  }
+
+  .sheet-table tbody tr:last-child,
+  .sheet-table tfoot tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .sheet-table tfoot tr {
+    background: #f4f6f9;
+    border: 2px solid var(--charcoal-top);
+    margin-top: 12px;
+  }
+
+  .sheet-table tbody td,
+  .sheet-table tfoot td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 4px;
+    border: none;
+    border-bottom: 1px solid #f1f3f5;
+    text-align: right;
+    white-space: normal;
+    font-size: 14px;
+    min-height: 40px;
+    background: transparent;
+  }
+
+  .sheet-table tbody td:last-child,
+  .sheet-table tfoot td:last-child {
+    border-bottom: none;
+  }
+
+  .sheet-table td.mobile-hide-empty {
+    display: none !important;
+  }
+
+  .sheet-table td.empty-row-cell {
+    display: block;
+    text-align: center !important;
+    padding: 20px 10px !important;
+    border-bottom: none;
+    font-size: 14px;
+  }
+
+  .sheet-table td.empty-row-cell::before {
+    display: none !important;
+  }
+
+  .sheet-table tbody td::before,
+  .sheet-table tfoot td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #4b5563;
+    text-align: left;
+    flex-shrink: 0;
+    max-width: 44%;
+    font-size: 13.5px;
+    line-height: 1.35;
+    word-break: keep-all;
+  }
+
+  .sheet-table td.card-title-cell {
+    background: #f8fafc;
+    margin: -2px -4px 4px;
+    padding: 9px 8px;
+    border-radius: 6px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14.5px;
+    font-weight: 800;
+  }
+
+  .sheet-table tfoot td.card-title-cell {
+    background: #e9edf3;
+  }
+
+  /* 카드 내부 인라인 입력창·셀렉트·버튼 크기 및 터치 영역 최적화 */
+  .sheet-table .table-inline-input,
+  .sheet-table .table-inline-date,
+  .sheet-table .table-inline-select,
+  .sheet-table .table-inline-text {
+    width: 146px !important;
+    max-width: 54% !important;
+    min-height: 40px;
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+
+  .sheet-table .cell-value-group {
+    max-width: 56%;
+    flex-wrap: nowrap;
+  }
+
+  .sheet-table .cell-value-group .table-inline-date,
+  .sheet-table .cell-value-group .table-inline-input {
+    width: 118px !important;
+    max-width: 100% !important;
+  }
+
+  .sheet-table .row-action-group {
+    gap: 8px;
+  }
+
+  .sheet-table .btn-save-sm,
+  .sheet-table .btn-danger-sm {
+    min-height: 40px;
+    padding: 7px 14px;
+    font-size: 13.5px;
+    border-radius: 6px;
+  }
+
+  /* 저장 알림 토스트 모바일 너비 맞춤 */
+  .save-toast {
+    left: 14px;
+    right: 14px;
+    bottom: 16px;
+    max-width: calc(100vw - 28px);
+    font-size: 13.5px;
+    padding: 12px 16px;
   }
 }

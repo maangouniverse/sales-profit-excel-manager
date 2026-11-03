@@ -377,11 +377,14 @@ function getCommonCostCategoryStats(start, end) {
 }
 
 function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, totalVarCost, netProfit, finalProfit, start, end, periodCommonCost) {
+  const isMobile = window.innerWidth <= 768;
+  const doughnutLegendPos = isMobile ? 'bottom' : 'right';
+
   // 1) 상단 히어로 막대 차트 (매출성과.png 우측 차트 스타일: 단위 천원)
   updateChart('chartTargetVsActual', {
     type: 'bar',
     data: {
-      labels: ['목표매출', '총 매출액', '총 순이익', '최종순이익(공통비후)'],
+      labels: isMobile ? ['목표매출', '총 매출액', '총 순이익', '최종순이익'] : ['목표매출', '총 매출액', '총 순이익', '최종순이익(공통비후)'],
       datasets: [{
         label: '단위: 천원',
         data: [
@@ -391,7 +394,7 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
           Math.round(finalProfit / 1000)
         ],
         backgroundColor: ['#92add0', '#2b4cbe', '#c5d185', '#5c7cfa'],
-        barThickness: 38,
+        barThickness: isMobile ? 26 : 38,
         borderRadius: 2
       }]
     },
@@ -465,7 +468,7 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
       maintainAspectRatio: false,
       cutout: '55%',
       plugins: {
-        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 12 } } },
+        legend: { position: doughnutLegendPos, labels: { boxWidth: 10, font: { size: 12 } } },
         tooltip: {
           callbacks: {
             label: function(ctx) {
@@ -497,7 +500,7 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
       maintainAspectRatio: false,
       cutout: '55%',
       plugins: {
-        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 12 } } },
+        legend: { position: doughnutLegendPos, labels: { boxWidth: 10, font: { size: 12 } } },
         tooltip: {
           callbacks: {
             label: function(ctx) {
@@ -545,28 +548,28 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${tm.label}</strong></td>
-      <td class="num">${fmtNum(tm.target)}</td>
-      <td class="num"><strong>${s > 0 ? fmtNum(s) : ''}</strong></td>
-      <td class="num">${s > 0 ? fmtPct(ach, 1) : '0.0%'}</td>
-      <td class="num">${c > 0 ? fmtNum(c) : ''}</td>
-      <td class="num ${p < 0 ? 'cell-negative' : p > 0 ? 'profit-pos' : ''}"><strong>${s > 0 || c > 0 ? fmtNum(p) : ''}</strong></td>
-      <td class="num">${s > 0 ? fmtPct(mar, 2) : '0.00%'}</td>
-      <td class="num">${ord > 0 ? fmtNum(ord) + '건' : ''}</td>
+      <td data-label="연월" class="card-title-cell"><strong>${tm.label}</strong></td>
+      <td data-label="목표매출" class="num">${fmtNum(tm.target)}</td>
+      <td data-label="총 매출" class="num primary-metric"><strong>${s > 0 ? fmtNum(s) : '0'}</strong></td>
+      <td data-label="달성률" class="num">${s > 0 ? fmtPct(ach, 1) : '0.0%'}</td>
+      <td data-label="총 지출(비용)" class="num">${c > 0 ? fmtNum(c) : '0'}</td>
+      <td data-label="순이익" class="num primary-metric ${p < 0 ? 'cell-negative' : p > 0 ? 'profit-pos' : ''}"><strong>${s > 0 || c > 0 ? fmtNum(p) : '0'}</strong></td>
+      <td data-label="이익률" class="num">${s > 0 ? fmtPct(mar, 2) : '0.00%'}</td>
+      <td data-label="주문건수" class="num">${ord > 0 ? fmtNum(ord) + '건' : '0건'}</td>
     `;
     mTbody.appendChild(tr);
   });
 
   mTfoot.innerHTML = `
     <tr>
-      <td>12개월 합계</td>
-      <td class="num">${fmtNum(sumTarget)}</td>
-      <td class="num">${fmtNum(sumSales)}</td>
-      <td class="num">${fmtPct(sumTarget > 0 ? sumSales / sumTarget : 0, 1)}</td>
-      <td class="num">${fmtNum(sumCost)}</td>
-      <td class="num ${sumProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sumProfit)}</td>
-      <td class="num">${fmtPct(sumSales > 0 ? sumProfit / sumSales : 0, 2)}</td>
-      <td class="num">${fmtNum(sumOrd)}건</td>
+      <td data-label="구분" class="card-title-cell">12개월 합계</td>
+      <td data-label="목표매출 합계" class="num">${fmtNum(sumTarget)}</td>
+      <td data-label="총 매출 합계" class="num">${fmtNum(sumSales)}</td>
+      <td data-label="달성률" class="num">${fmtPct(sumTarget > 0 ? sumSales / sumTarget : 0, 1)}</td>
+      <td data-label="총 지출 합계" class="num">${fmtNum(sumCost)}</td>
+      <td data-label="순이익 합계" class="num ${sumProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sumProfit)}</td>
+      <td data-label="이익률" class="num">${fmtPct(sumSales > 0 ? sumProfit / sumSales : 0, 2)}</td>
+      <td data-label="주문건수 합계" class="num">${fmtNum(sumOrd)}건</td>
     </tr>
   `;
 
@@ -630,7 +633,7 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
       maintainAspectRatio: false,
       cutout: '55%',
       plugins: {
-        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 12 } } },
+        legend: { position: doughnutLegendPos, labels: { boxWidth: 10, font: { size: 12 } } },
         tooltip: {
           callbacks: {
             label: function(ctx) {
@@ -679,7 +682,8 @@ function renderDailySalesTable(evaluatedSales, start, end) {
 
   if (rows.length === 0) {
     const emptyTr = document.createElement('tr');
-    emptyTr.innerHTML = `<td colspan="18" style="text-align:center; padding:24px; color:#64748b;">등록된 일일 매출 내역이 없습니다. 상단 입력 칸에서 새로운 매출·주문 내역을 추가해 주세요.</td>`;
+    emptyTr.className = 'empty-table-row';
+    emptyTr.innerHTML = `<td colspan="18" class="empty-row-cell" style="text-align:center; padding:24px; color:#64748b;">등록된 일일 매출 내역이 없습니다. 상단 입력 칸에서 새로운 매출·주문 내역을 추가해 주세요.</td>`;
     tbody.appendChild(emptyTr);
   }
 
@@ -705,41 +709,43 @@ function renderDailySalesTable(evaluatedSales, start, end) {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>
-        <input type="date" class="table-inline-date date-clickable" value="${r.date}" onchange="updateDailyField(${r.id}, 'date', this.value)" />
-        <span class="date-day-badge ${dFormatted.cls}">(${dFormatted.dayChar})</span>
+      <td data-label="일자 (달력 수정)" class="card-title-cell">
+        <span class="cell-value-group">
+          <input type="date" class="table-inline-date date-clickable" value="${r.date}" onchange="updateDailyField(${r.id}, 'date', this.value)" />
+          <span class="date-day-badge ${dFormatted.cls}">(${dFormatted.dayChar})</span>
+        </span>
       </td>
-      <td>
+      <td data-label="판매채널" class="primary-metric">
         <select class="table-inline-select" onchange="updateDailyField(${r.id}, 'channel', this.value)">
           ${chOpts}
         </select>
       </td>
-      <td class="num">
+      <td data-label="10kg 미만 건수" class="num">
         <input type="number" class="table-inline-input" style="width:74px" min="0" step="1" value="${r.ordersUnder10}" onchange="updateDailyField(${r.id}, 'ordersUnder10', Math.max(0, Math.round(Number(this.value)||0)))" />
       </td>
-      <td class="num">
+      <td data-label="10kg 이상 건수" class="num">
         <input type="number" class="table-inline-input" style="width:74px" min="0" step="1" value="${r.ordersOver10}" onchange="updateDailyField(${r.id}, 'ordersOver10', Math.max(0, Math.round(Number(this.value)||0)))" />
       </td>
-      <td class="num"><strong>${fmtNum(r.totalOrders)}</strong></td>
-      <td class="num">
+      <td data-label="총 주문건수" class="num primary-metric"><strong>${fmtNum(r.totalOrders)}</strong></td>
+      <td data-label="총 매출 (일일 매출액)" class="num primary-metric">
         <input type="number" class="table-inline-input" style="width:110px" min="0" step="100" value="${r.sales}" onchange="updateDailyField(${r.id}, 'sales', Math.max(0, Number(this.value)||0))" />
       </td>
-      <td class="num">
+      <td data-label="추가 비용" class="num">
         <input type="number" class="table-inline-input" style="width:88px" min="0" step="100" value="${r.extraCost || 0}" onchange="updateDailyField(${r.id}, 'extraCost', Math.max(0, Number(this.value)||0))" />
       </td>
-      <td>
+      <td data-label="비고">
         <input type="text" class="table-inline-text" value="${escapeHtmlAttr(r.note)}" onchange="updateDailyField(${r.id}, 'note', this.value)" placeholder="비고 입력" />
       </td>
-      <td class="${errCls}">${r.status}</td>
-      <td class="num ${errCls}">${r.isValid ? fmtPct(r.feeRate, 2) : '비용 설정 필요'}</td>
-      <td class="num ${errCls}">${r.isValid ? fmtNum(r.feeAmt) : '비용 설정 필요'}</td>
-      <td class="num ${errCls}">${r.isValid ? fmtNum(r.unitUnder10) : '비용 설정 필요'}</td>
-      <td class="num ${errCls}">${r.isValid ? fmtNum(r.unitOver10) : '비용 설정 필요'}</td>
-      <td class="num ${errCls}">${r.isValid ? fmtNum(r.orderCost) : '비용 설정 필요'}</td>
-      <td class="num ${errCls}"><strong>${r.isValid ? fmtNum(r.totalCost) : '비용 설정 필요'}</strong></td>
-      <td class="num ${profitCls}">${r.isValid ? fmtNum(r.netProfit) : '비용 설정 필요'}</td>
-      <td class="num ${errCls}">${r.isValid ? fmtPct(r.margin, 1) : '비용 설정 필요'}</td>
-      <td>
+      <td data-label="설정상태" class="${errCls}">${r.status}</td>
+      <td data-label="적용 수수료율" class="num ${errCls}">${r.isValid ? fmtPct(r.feeRate, 2) : '비용 설정 필요'}</td>
+      <td data-label="매출액 수수료" class="num ${errCls}">${r.isValid ? fmtNum(r.feeAmt) : '비용 설정 필요'}</td>
+      <td data-label="10kg미만 단가" class="num ${errCls}">${r.isValid ? fmtNum(r.unitUnder10) : '비용 설정 필요'}</td>
+      <td data-label="10kg이상 단가" class="num ${errCls}">${r.isValid ? fmtNum(r.unitOver10) : '비용 설정 필요'}</td>
+      <td data-label="건수비용 합계" class="num ${errCls}">${r.isValid ? fmtNum(r.orderCost) : '비용 설정 필요'}</td>
+      <td data-label="총 지출 (총비용)" class="num ${errCls}"><strong>${r.isValid ? fmtNum(r.totalCost) : '비용 설정 필요'}</strong></td>
+      <td data-label="순이익" class="num primary-metric ${profitCls}">${r.isValid ? fmtNum(r.netProfit) : '비용 설정 필요'}</td>
+      <td data-label="순이익률" class="num ${errCls}">${r.isValid ? fmtPct(r.margin, 1) : '비용 설정 필요'}</td>
+      <td data-label="관리">
         <div class="row-action-group">
           <button type="button" class="btn-save-sm" onclick="triggerManualSave('해당 일일 매출·주문 내역이 저장되었습니다!')">💾 저장</button>
           <button type="button" class="btn-danger-sm" onclick="deleteDailyRow(${r.id})">삭제</button>
@@ -751,23 +757,23 @@ function renderDailySalesTable(evaluatedSales, start, end) {
 
   tfoot.innerHTML = `
     <tr>
-      <td colspan="2">합계 (${rows.length}건)</td>
-      <td class="num">${fmtNum(sumU10)}</td>
-      <td class="num">${fmtNum(sumO10)}</td>
-      <td class="num">${fmtNum(sumOrd)}</td>
-      <td class="num">${fmtNum(sumSales)}</td>
-      <td class="num">${fmtNum(sumExtra)}</td>
-      <td></td>
-      <td>정상 합산</td>
-      <td class="num">-</td>
-      <td class="num">${fmtNum(sumFee)}</td>
-      <td class="num">-</td>
-      <td class="num">-</td>
-      <td class="num">${fmtNum(sumOrdCost)}</td>
-      <td class="num">${fmtNum(sumCost)}</td>
-      <td class="num ${sumProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sumProfit)}</td>
-      <td class="num">${fmtPct(sumSales > 0 ? sumProfit / sumSales : 0, 1)}</td>
-      <td></td>
+      <td colspan="2" data-label="구분" class="card-title-cell">합계 (${rows.length}건)</td>
+      <td data-label="10kg 미만 합계" class="num">${fmtNum(sumU10)}</td>
+      <td data-label="10kg 이상 합계" class="num">${fmtNum(sumO10)}</td>
+      <td data-label="총 주문건수" class="num">${fmtNum(sumOrd)}</td>
+      <td data-label="총 매출 합계" class="num">${fmtNum(sumSales)}</td>
+      <td data-label="추가 비용 합계" class="num">${fmtNum(sumExtra)}</td>
+      <td class="mobile-hide-empty"></td>
+      <td data-label="집계 상태">정상 합산</td>
+      <td class="num mobile-hide-empty">-</td>
+      <td data-label="매출액 수수료 합계" class="num">${fmtNum(sumFee)}</td>
+      <td class="num mobile-hide-empty">-</td>
+      <td class="num mobile-hide-empty">-</td>
+      <td data-label="건수비용 합계" class="num">${fmtNum(sumOrdCost)}</td>
+      <td data-label="총 지출 합계" class="num">${fmtNum(sumCost)}</td>
+      <td data-label="순이익 합계" class="num ${sumProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sumProfit)}</td>
+      <td data-label="순이익률" class="num">${fmtPct(sumSales > 0 ? sumProfit / sumSales : 0, 1)}</td>
+      <td class="mobile-hide-empty"></td>
     </tr>
   `;
 }
@@ -788,27 +794,32 @@ function renderChannelRatesTable() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td>
+      <td data-label="No" class="card-title-cell"><strong>#${idx + 1}</strong></td>
+      <td data-label="판매채널" class="primary-metric">
         <select class="table-inline-select" onchange="updateRateField(${r.id}, 'channel', this.value)">
           ${chOpts}
         </select>
       </td>
-      <td><input type="date" class="table-inline-date date-clickable" value="${r.start}" onchange="updateRateField(${r.id}, 'start', this.value)" /></td>
-      <td><input type="date" class="table-inline-date date-clickable" value="${r.end || ''}" onchange="updateRateField(${r.id}, 'end', this.value)" /></td>
-      <td class="num"><input type="number" class="table-inline-input" step="0.1" value="${(r.feeRate * 100).toFixed(2)}" onchange="updateRateField(${r.id}, 'feeRate', Number(this.value)/100)" />%</td>
-      <td class="num"><input type="number" class="table-inline-input" step="100" value="${r.shipUnder10}" onchange="updateRateField(${r.id}, 'shipUnder10', Number(this.value))" /></td>
-      <td class="num"><input type="number" class="table-inline-input" step="100" value="${r.shipOver10}" onchange="updateRateField(${r.id}, 'shipOver10', Number(this.value))" /></td>
-      <td class="num"><input type="number" class="table-inline-input" step="10" value="${r.boxCost}" onchange="updateRateField(${r.id}, 'boxCost', Number(this.value))" /></td>
-      <td class="num"><input type="number" class="table-inline-input" step="10" value="${r.vinylCost}" onchange="updateRateField(${r.id}, 'vinylCost', Number(this.value))" /></td>
-      <td class="num"><input type="number" class="table-inline-input" step="10" value="${r.leafletCost}" onchange="updateRateField(${r.id}, 'leafletCost', Number(this.value))" /></td>
-      <td class="num"><strong>${fmtWon(sumUnder10)}</strong></td>
-      <td class="num"><strong>${fmtWon(sumOver10)}</strong></td>
-      <td class="${isErr ? 'cell-error' : ''}">${status}</td>
-      <td>
+      <td data-label="📅 적용 시작일"><input type="date" class="table-inline-date date-clickable" value="${r.start}" onchange="updateRateField(${r.id}, 'start', this.value)" /></td>
+      <td data-label="📅 적용 종료일"><input type="date" class="table-inline-date date-clickable" value="${r.end || ''}" onchange="updateRateField(${r.id}, 'end', this.value)" /></td>
+      <td data-label="수수료율 (%)" class="num">
+        <span class="cell-value-group">
+          <input type="number" class="table-inline-input" step="0.1" value="${(r.feeRate * 100).toFixed(2)}" onchange="updateRateField(${r.id}, 'feeRate', Number(this.value)/100)" />
+          <span>%</span>
+        </span>
+      </td>
+      <td data-label="10kg 미만 배송비" class="num"><input type="number" class="table-inline-input" step="100" value="${r.shipUnder10}" onchange="updateRateField(${r.id}, 'shipUnder10', Number(this.value))" /></td>
+      <td data-label="10kg 이상 배송비" class="num"><input type="number" class="table-inline-input" step="100" value="${r.shipOver10}" onchange="updateRateField(${r.id}, 'shipOver10', Number(this.value))" /></td>
+      <td data-label="박스 비용" class="num"><input type="number" class="table-inline-input" step="10" value="${r.boxCost}" onchange="updateRateField(${r.id}, 'boxCost', Number(this.value))" /></td>
+      <td data-label="포장비닐 비용" class="num"><input type="number" class="table-inline-input" step="10" value="${r.vinylCost}" onchange="updateRateField(${r.id}, 'vinylCost', Number(this.value))" /></td>
+      <td data-label="리플렛 비용" class="num"><input type="number" class="table-inline-input" step="10" value="${r.leafletCost}" onchange="updateRateField(${r.id}, 'leafletCost', Number(this.value))" /></td>
+      <td data-label="10kg 미만 합계" class="num primary-metric"><strong>${fmtWon(sumUnder10)}</strong></td>
+      <td data-label="10kg 이상 합계" class="num primary-metric"><strong>${fmtWon(sumOver10)}</strong></td>
+      <td data-label="기간 중복 검증" class="${isErr ? 'cell-error' : ''}">${status}</td>
+      <td data-label="비고">
         <input type="text" class="table-inline-text" value="${escapeHtmlAttr(r.note)}" onchange="updateRateField(${r.id}, 'note', this.value)" placeholder="비고 입력" />
       </td>
-      <td>
+      <td data-label="관리">
         <div class="row-action-group">
           <button type="button" class="btn-save-sm" onclick="triggerManualSave('해당 채널 비용 설정이 저장되었습니다!')">💾 저장</button>
           <button type="button" class="btn-danger-sm" onclick="deleteRateRow(${r.id})">삭제</button>
@@ -879,43 +890,43 @@ function renderAnalysisTab(periodRows, totalSales, totalOrders, periodCommonCost
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${i + 1}</td>
-      <td><strong>${st.name}</strong></td>
-      <td class="num">${fmtNum(st.u10)}</td>
-      <td class="num">${fmtNum(st.o10)}</td>
-      <td class="num"><strong>${fmtNum(st.orders)}</strong></td>
-      <td class="num"><strong>${fmtNum(st.sales)}</strong></td>
-      <td class="num">${fmtPct(st.share, 1)}</td>
-      <td class="num">${fmtNum(st.fee)}</td>
-      <td class="num">${fmtNum(st.orderCost)}</td>
-      <td class="num">${fmtNum(st.extra)}</td>
-      <td class="num">${fmtNum(st.totalCost)}</td>
-      <td class="num ${neg1}"><strong>${fmtNum(st.netProfit)}</strong></td>
-      <td class="num ${st.netProfit < 0 ? 'cell-negative' : ''}">${fmtPct(st.margin, 1)}</td>
-      <td class="num">${fmtNum(st.allocCommon)}</td>
-      <td class="num ${neg2}"><strong>${fmtNum(st.finalProfit)}</strong></td>
-      <td class="num ${neg2}">${fmtPct(st.finalMargin, 1)}</td>
+      <td data-label="순위">${i + 1}위</td>
+      <td data-label="판매채널명" class="card-title-cell"><strong>${st.name}</strong></td>
+      <td data-label="10kg 미만 건수" class="num">${fmtNum(st.u10)}</td>
+      <td data-label="10kg 이상 건수" class="num">${fmtNum(st.o10)}</td>
+      <td data-label="총 주문건수" class="num primary-metric"><strong>${fmtNum(st.orders)}</strong></td>
+      <td data-label="매출액 (원)" class="num primary-metric"><strong>${fmtNum(st.sales)}</strong></td>
+      <td data-label="매출 비중" class="num">${fmtPct(st.share, 1)}</td>
+      <td data-label="매출액 수수료" class="num">${fmtNum(st.fee)}</td>
+      <td data-label="택배·포장비 합계" class="num">${fmtNum(st.orderCost)}</td>
+      <td data-label="추가 비용" class="num">${fmtNum(st.extra)}</td>
+      <td data-label="총비용(변동)" class="num">${fmtNum(st.totalCost)}</td>
+      <td data-label="순이익 (공통비 전)" class="num primary-metric ${neg1}"><strong>${fmtNum(st.netProfit)}</strong></td>
+      <td data-label="순이익률 (공통비 전)" class="num ${st.netProfit < 0 ? 'cell-negative' : ''}">${fmtPct(st.margin, 1)}</td>
+      <td data-label="공통비용 배분액" class="num">${fmtNum(st.allocCommon)}</td>
+      <td data-label="최종 순이익 (공통비 후)" class="num primary-metric ${neg2}"><strong>${fmtNum(st.finalProfit)}</strong></td>
+      <td data-label="최종 이익률 (공통비 후)" class="num ${neg2}">${fmtPct(st.finalMargin, 1)}</td>
     `;
     tbody.appendChild(tr);
   });
 
   tfoot.innerHTML = `
     <tr>
-      <td colspan="2">전체 ${channelStats.length}개 판매채널 합계</td>
-      <td class="num">${fmtNum(sU10)}</td>
-      <td class="num">${fmtNum(sO10)}</td>
-      <td class="num">${fmtNum(sOrd)}</td>
-      <td class="num">${fmtNum(sSales)}</td>
-      <td class="num">100.0%</td>
-      <td class="num">${fmtNum(sFee)}</td>
-      <td class="num">${fmtNum(sOrdCost)}</td>
-      <td class="num">${fmtNum(sExtra)}</td>
-      <td class="num">${fmtNum(sCost)}</td>
-      <td class="num ${sProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sProfit)}</td>
-      <td class="num">${fmtPct(sSales > 0 ? sProfit / sSales : 0, 1)}</td>
-      <td class="num">${fmtNum(sAlloc)}</td>
-      <td class="num ${sFinal < 0 ? 'cell-negative' : ''}">${fmtNum(sFinal)}</td>
-      <td class="num">${fmtPct(sSales > 0 ? sFinal / sSales : 0, 1)}</td>
+      <td colspan="2" data-label="구분" class="card-title-cell">전체 ${channelStats.length}개 판매채널 합계</td>
+      <td data-label="10kg 미만 합계" class="num">${fmtNum(sU10)}</td>
+      <td data-label="10kg 이상 합계" class="num">${fmtNum(sO10)}</td>
+      <td data-label="총 주문건수" class="num">${fmtNum(sOrd)}</td>
+      <td data-label="매출액 합계" class="num">${fmtNum(sSales)}</td>
+      <td data-label="매출 비중" class="num">100.0%</td>
+      <td data-label="매출액 수수료 합계" class="num">${fmtNum(sFee)}</td>
+      <td data-label="택배·포장비 합계" class="num">${fmtNum(sOrdCost)}</td>
+      <td data-label="추가 비용 합계" class="num">${fmtNum(sExtra)}</td>
+      <td data-label="총비용(변동) 합계" class="num">${fmtNum(sCost)}</td>
+      <td data-label="순이익 합계 (공통비 전)" class="num ${sProfit < 0 ? 'cell-negative' : ''}">${fmtNum(sProfit)}</td>
+      <td data-label="순이익률 (공통비 전)" class="num">${fmtPct(sSales > 0 ? sProfit / sSales : 0, 1)}</td>
+      <td data-label="공통비용 배분액 합계" class="num">${fmtNum(sAlloc)}</td>
+      <td data-label="최종 순이익 합계" class="num ${sFinal < 0 ? 'cell-negative' : ''}">${fmtNum(sFinal)}</td>
+      <td data-label="최종 이익률" class="num">${fmtPct(sSales > 0 ? sFinal / sSales : 0, 1)}</td>
     </tr>
   `;
 
@@ -976,25 +987,25 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${tm.label}</strong></td>
-      <td style="color:#666;">${tm.start} ~ ${tm.end}</td>
-      <td>${tm.days}일</td>
-      <td class="num">
+      <td data-label="대상 연월" class="card-title-cell"><strong>${tm.label}</strong></td>
+      <td data-label="적용 기간" style="color:#666;">${tm.start} ~ ${tm.end}</td>
+      <td data-label="총 일수">${tm.days}일</td>
+      <td data-label="월별 목표매출 (원)" class="num primary-metric">
         <input type="number" class="table-inline-input" style="width:130px" step="100000" value="${tm.target}" onchange="updateMonthlyTarget('${tm.ym}', Number(this.value))" />
       </td>
-      <td class="num">${fmtWon(daily)}</td>
-      <td class="num"><strong>${fmtWon(applied)}</strong></td>
+      <td data-label="일할 목표매출 (원/일)" class="num">${fmtWon(daily)}</td>
+      <td data-label="조회기간 반영 목표매출" class="num primary-metric"><strong>${fmtWon(applied)}</strong></td>
     `;
     tTbody.appendChild(tr);
   });
 
   tTfoot.innerHTML = `
     <tr>
-      <td colspan="2">12개월 목표매출 총합계 (2026.11 ~ 2027.10)</td>
-      <td>365일</td>
-      <td class="num">${fmtWon(totalAnnualTarget)}</td>
-      <td class="num">${fmtWon(Math.round(totalAnnualTarget / 365))}/일</td>
-      <td class="num">${fmtWon(periodTarget)}</td>
+      <td colspan="2" data-label="구분" class="card-title-cell">12개월 목표매출 총합계 (2026.11 ~ 2027.10)</td>
+      <td data-label="총 일수">365일</td>
+      <td data-label="목표매출 총합계" class="num">${fmtWon(totalAnnualTarget)}</td>
+      <td data-label="평균 일할 목표" class="num">${fmtWon(Math.round(totalAnnualTarget / 365))}/일</td>
+      <td data-label="조회기간 반영 합계" class="num">${fmtWon(periodTarget)}</td>
     </tr>
   `;
 
@@ -1006,7 +1017,8 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
   let sumAllCommon = 0;
   if (state.commonCosts.length === 0) {
     const emptyTr = document.createElement('tr');
-    emptyTr.innerHTML = `<td colspan="6" style="text-align:center; padding:20px; color:#64748b;">등록된 공통비용 내역이 없습니다. 위 입력 칸에서 공통비용을 추가해 주세요.</td>`;
+    emptyTr.className = 'empty-table-row';
+    emptyTr.innerHTML = `<td colspan="6" class="empty-row-cell" style="text-align:center; padding:20px; color:#64748b;">등록된 공통비용 내역이 없습니다. 위 입력 칸에서 공통비용을 추가해 주세요.</td>`;
     cTbody.appendChild(emptyTr);
   }
   state.commonCosts.forEach(c => {
@@ -1015,20 +1027,20 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>
+      <td data-label="📅 지출/귀속일자" class="card-title-cell">
         <input type="date" class="table-inline-date date-clickable" value="${c.date}" onchange="updateCommonField(${c.id}, 'date', this.value)" />
       </td>
-      <td>
+      <td data-label="공통비용 항목" class="primary-metric">
         <input type="text" list="commonCostCatList" class="table-inline-text" style="width:140px;font-weight:700;" value="${escapeHtmlAttr(c.category)}" onchange="updateCommonField(${c.id}, 'category', this.value)" />
       </td>
-      <td class="num">
+      <td data-label="금액 (원)" class="num primary-metric">
         <input type="number" class="table-inline-input" style="width:105px;" min="0" step="1000" value="${c.amount}" onchange="updateCommonField(${c.id}, 'amount', Math.max(0, Number(this.value)||0))" />
       </td>
-      <td>${inPeriod ? '✅ 포함' : '제외'}</td>
-      <td>
+      <td data-label="조회기간 포함">${inPeriod ? '✅ 포함' : '제외'}</td>
+      <td data-label="비고">
         <input type="text" class="table-inline-text" style="width:165px;" value="${escapeHtmlAttr(c.note)}" onchange="updateCommonField(${c.id}, 'note', this.value)" placeholder="비고 입력" />
       </td>
-      <td>
+      <td data-label="관리">
         <div class="row-action-group">
           <button type="button" class="btn-save-sm" onclick="triggerManualSave('해당 공통비용 내역이 저장되었습니다!')">💾 저장</button>
           <button type="button" class="btn-danger-sm" onclick="deleteCommonCost(${c.id})">삭제</button>
@@ -1040,9 +1052,9 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
 
   cTfoot.innerHTML = `
     <tr>
-      <td colspan="2">공통비용 합계</td>
-      <td class="num">전체: ${fmtWon(sumAllCommon)}</td>
-      <td colspan="3">현재 조회기간 반영액: ${fmtWon(periodCommonCost)}</td>
+      <td colspan="2" data-label="구분" class="card-title-cell">공통비용 합계</td>
+      <td data-label="전체 누적 합계" class="num">전체: ${fmtWon(sumAllCommon)}</td>
+      <td colspan="3" data-label="현재 조회기간 반영액">현재 조회기간 반영액: ${fmtWon(periodCommonCost)}</td>
     </tr>
   `;
 
@@ -1055,22 +1067,22 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
     ccStats.forEach((st, idx) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${idx + 1}</td>
-        <td><strong>${st.catName}</strong></td>
-        <td class="num"><strong>${fmtWon(st.periodAmt)}</strong></td>
-        <td class="num">${fmtPct(st.periodShare, 1)}</td>
-        <td class="num">${fmtWon(st.allAmt)}</td>
-        <td class="num">${fmtPct(st.allShare, 1)}</td>
+        <td data-label="No">${idx + 1}</td>
+        <td data-label="공통비용 항목명" class="card-title-cell"><strong>${st.catName}</strong></td>
+        <td data-label="선택기간 지출액 (원)" class="num primary-metric"><strong>${fmtWon(st.periodAmt)}</strong></td>
+        <td data-label="선택기간 비중" class="num">${fmtPct(st.periodShare, 1)}</td>
+        <td data-label="전체 누적 지출액 (원)" class="num">${fmtWon(st.allAmt)}</td>
+        <td data-label="전체 누적 비중" class="num">${fmtPct(st.allShare, 1)}</td>
       `;
       catTbody.appendChild(tr);
     });
     catTfoot.innerHTML = `
       <tr>
-        <td colspan="2">공통비용 항목별 합계 (${ccStats.length}개 항목)</td>
-        <td class="num">${fmtWon(periodCommonCost)}</td>
-        <td class="num">${periodCommonCost > 0 ? '100.0%' : '0.0%'}</td>
-        <td class="num">${fmtWon(sumAllCommon)}</td>
-        <td class="num">${sumAllCommon > 0 ? '100.0%' : '0.0%'}</td>
+        <td colspan="2" data-label="구분" class="card-title-cell">공통비용 항목별 합계 (${ccStats.length}개 항목)</td>
+        <td data-label="선택기간 합계" class="num">${fmtWon(periodCommonCost)}</td>
+        <td data-label="선택기간 비중" class="num">${periodCommonCost > 0 ? '100.0%' : '0.0%'}</td>
+        <td data-label="전체 누적 합계" class="num">${fmtWon(sumAllCommon)}</td>
+        <td data-label="전체 누적 비중" class="num">${sumAllCommon > 0 ? '100.0%' : '0.0%'}</td>
       </tr>
     `;
   }
@@ -1330,6 +1342,18 @@ document.addEventListener('DOMContentLoaded', () => {
       renderAll();
     }
     document.getElementById('inNewChannelName').value = '';
+  });
+
+  // 화면 너비 변경 시 차트 및 레이아웃 반응형 갱신
+  let lastViewportWidth = window.innerWidth;
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (window.innerWidth === lastViewportWidth) return;
+    lastViewportWidth = window.innerWidth;
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      renderAll();
+    }, 120);
   });
 
   renderAll();
