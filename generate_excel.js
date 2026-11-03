@@ -89,7 +89,7 @@ function buildSheet1() {
   for (let c = 11; c <= 15; c++) sh.setCell(3, c, { v: '', s: 4 });
 
   sh.setCell(4, 2, { v: defaultYm, s: 5 });
-  sh.setCell(4, 3, { f: '\'5_목표매출_및_공통비용\'!E19', v: totalAnnualTarget, s: 13 });
+  sh.setCell(4, 3, { f: '\'6_목표매출\'!E19', v: totalAnnualTarget, s: 13 });
   sh.setCell(4, 4, { v: '', s: 7 }); // 직접 시작일
   sh.setCell(4, 5, { v: '', s: 7 }); // 직접 종료일
   sh.setCell(4, 6, {
@@ -124,7 +124,7 @@ function buildSheet1() {
   sh.setRowHeight(6, 20);
   sh.setRowHeight(7, 32);
   const kpiRow1 = [
-    { c1: 2, c2: 3, label: '선택기간 목표매출 (원)', f: '\'5_목표매출_및_공통비용\'!G19', v: periodTarget, s: 20 },
+    { c1: 2, c2: 3, label: '선택기간 목표매출 (원)', f: '\'6_목표매출\'!G19', v: periodTarget, s: 20 },
     { c1: 4, c2: 5, label: '총 매출액 (실제매출)', f: 'SUMIFS(\'2_일일매출_입력\'!$G$6:$G$305,\'2_일일매출_입력\'!$B$6:$B$305,">="&$F$4,\'2_일일매출_입력\'!$B$6:$B$305,"<="&$G$4)', v: periodActualSales, s: 20 },
     { c1: 6, c2: 7, label: '목표 달성률 (%)', f: 'IFERROR(D7/B7,0)', v: periodTarget > 0 ? periodActualSales / periodTarget : 0, s: 21 },
     { c1: 8, c2: 9, label: '총 주문건수 (미만+이상)', f: 'SUMIFS(\'2_일일매출_입력\'!$F$6:$F$305,\'2_일일매출_입력\'!$B$6:$B$305,">="&$F$4,\'2_일일매출_입력\'!$B$6:$B$305,"<="&$G$4)', v: periodOrders, s: 20 },
@@ -149,7 +149,7 @@ function buildSheet1() {
     { c1: 4, c2: 5, label: '10kg 이상 주문건수 (건)', f: 'SUMIFS(\'2_일일매출_입력\'!$E$6:$E$305,\'2_일일매출_입력\'!$B$6:$B$305,">="&$F$4,\'2_일일매출_입력\'!$B$6:$B$305,"<="&$G$4)', v: periodOrdersOver10, s: 12 },
     { c1: 6, c2: 7, label: '매출액 기준 수수료 (원)', f: 'SUMIFS(\'2_일일매출_입력\'!$L$6:$L$305,\'2_일일매출_입력\'!$B$6:$B$305,">="&$F$4,\'2_일일매출_입력\'!$B$6:$B$305,"<="&$G$4)', v: periodFee, s: 12 },
     { c1: 8, c2: 9, label: '택배·포장 건수비용 합계', f: 'SUMIFS(\'2_일일매출_입력\'!$O$6:$O$305,\'2_일일매출_입력\'!$B$6:$B$305,">="&$F$4,\'2_일일매출_입력\'!$B$6:$B$305,"<="&$G$4)', v: periodOrderCost, s: 12 },
-    { c1: 10, c2: 11, label: '기간 공통비용 (8개 항목)', f: '\'5_목표매출_및_공통비용\'!O26', v: periodCommonCost, s: 12 },
+    { c1: 10, c2: 11, label: '기간 공통비용 (8개 항목)', f: '\'5_공통비용\'!H26', v: periodCommonCost, s: 12 },
     { c1: 12, c2: 13, label: '최종 순이익 (공통비 후)', f: 'L7-J9', v: periodFinalProfit, s: 13 },
     { c1: 14, c2: 15, label: '최종 순이익률 (공통비 후)', f: 'IFERROR(L9/D7,0)', v: periodFinalMargin, s: 14 }
   ];
@@ -210,21 +210,21 @@ function buildSheet1() {
     monthlyChartCache.profit.push(mProfit);
 
     sh.setCell(r, 2, { v: tm.label, s: 23 });
-    sh.setCell(r, 3, { f: `'5_목표매출_및_공통비용'!E${7 + idx}`, v: tm.target, s: 25 });
+    sh.setCell(r, 3, { f: `'6_목표매출'!E${7 + idx}`, v: tm.target, s: 25 });
     sh.setCell(r, 4, {
-      f: `SUMIFS('2_일일매출_입력'!$G$6:$G$305,'2_일일매출_입력'!$B$6:$B$305,">="&'5_목표매출_및_공통비용'!C${7 + idx},'2_일일매출_입력'!$B$6:$B$305,"<="&'5_목표매출_및_공통비용'!D${7 + idx})`,
+      f: `SUMIFS('2_일일매출_입력'!$G$6:$G$305,'2_일일매출_입력'!$B$6:$B$305,">="&'6_목표매출'!C${7 + idx},'2_일일매출_입력'!$B$6:$B$305,"<="&'6_목표매출'!D${7 + idx})`,
       v: mSales,
       s: 25
     });
     sh.setCell(r, 5, {
-      f: `SUMIFS('2_일일매출_입력'!$P$6:$P$305,'2_일일매출_입력'!$B$6:$B$305,">="&'5_목표매출_및_공통비용'!C${7 + idx},'2_일일매출_입력'!$B$6:$B$305,"<="&'5_목표매출_및_공통비용'!D${7 + idx})`,
+      f: `SUMIFS('2_일일매출_입력'!$P$6:$P$305,'2_일일매출_입력'!$B$6:$B$305,">="&'6_목표매출'!C${7 + idx},'2_일일매출_입력'!$B$6:$B$305,"<="&'6_목표매출'!D${7 + idx})`,
       v: mCost,
       s: 25
     });
     sh.setCell(r, 6, { f: `D${r}-E${r}`, v: mProfit, s: 12 });
     sh.setCell(r, 7, { f: `IFERROR(F${r}/D${r},0)`, v: mMargin, s: 26 });
     sh.setCell(r, 8, {
-      f: `SUMIFS('2_일일매출_입력'!$F$6:$F$305,'2_일일매출_입력'!$B$6:$B$305,">="&'5_목표매출_및_공통비용'!C${7 + idx},'2_일일매출_입력'!$B$6:$B$305,"<="&'5_목표매출_및_공통비용'!D${7 + idx})`,
+      f: `SUMIFS('2_일일매출_입력'!$F$6:$F$305,'2_일일매출_입력'!$B$6:$B$305,">="&'6_목표매출'!C${7 + idx},'2_일일매출_입력'!$B$6:$B$305,"<="&'6_목표매출'!D${7 + idx})`,
       v: mOrders,
       s: 25
     });
@@ -273,7 +273,7 @@ function buildSheet1() {
     channelChartCache.sales.push(cSales);
     channelChartCache.profits.push(cProfit);
 
-    sh.setCell(r, 10, { f: `'6_사용설명서_및_기준관리'!B${6 + idx}`, v: chName, s: 23 });
+    sh.setCell(r, 10, { f: `'7_사용설명서_및_기준관리'!B${6 + idx}`, v: chName, s: 23 });
     sh.setCell(r, 11, {
       f: `SUMIFS('2_일일매출_입력'!$F$6:$F$305,'2_일일매출_입력'!$C$6:$C$305,J${r},'2_일일매출_입력'!$B$6:$B$305,">="&$F$4,'2_일일매출_입력'!$B$6:$B$305,"<="&$G$4)`,
       v: cOrders,
@@ -346,7 +346,7 @@ function buildSheet1() {
     sh.setCell(r, 3, { v: '', s: 23 });
     sh.merge(`B${r}:C${r}`);
     sh.setCell(r, 4, {
-      f: `SUMIFS('5_목표매출_및_공통비용'!$L$7:$L$25,'5_목표매출_및_공통비용'!$J$7:$J$25,B${r},'5_목표매출_및_공통비용'!$I$7:$I$25,">="&$F$4,'5_목표매출_및_공통비용'!$I$7:$I$25,"<="&$G$4)`,
+      f: `SUMIFS('5_공통비용'!$E$7:$E$25,'5_공통비용'!$C$7:$C$25,B${r},'5_공통비용'!$B$7:$B$25,">="&$F$4,'5_공통비용'!$B$7:$B$25,"<="&$G$4)`,
       v: catAmt,
       s: 25
     });
@@ -517,7 +517,7 @@ function buildSheet2() {
   sh.addValidation({
     type: 'list',
     sqref: 'C6:C305',
-    formula1: "'6_사용설명서_및_기준관리'!$B$6:$B$25",
+    formula1: "'7_사용설명서_및_기준관리'!$B$6:$B$25",
     promptTitle: '판매채널 선택',
     prompt: '목록에서 판매채널을 선택하세요.'
   });
@@ -672,7 +672,7 @@ function buildSheet3() {
   sh.addValidation({
     type: 'list',
     sqref: 'C6:C55',
-    formula1: "'6_사용설명서_및_기준관리'!$B$6:$B$25",
+    formula1: "'7_사용설명서_및_기준관리'!$B$6:$B$25",
     promptTitle: '판매채널 선택',
     prompt: '비용을 설정할 판매채널을 선택하세요.'
   });
@@ -741,10 +741,10 @@ function buildSheet4() {
   sh.merge('D4:F4');
   sh.setCell(4, 5, { v: '', s: 5 });
   sh.setCell(4, 6, { v: '', s: 5 });
-  sh.setCell(4, 7, { f: "'5_목표매출_및_공통비용'!K4", v: '매출액 비중 배분', s: 10 });
+  sh.setCell(4, 7, { f: "'5_공통비용'!D4", v: '매출액 비중 배분', s: 10 });
   sh.merge('G4:H4');
   sh.setCell(4, 8, { v: '', s: 10 });
-  sh.setCell(4, 9, { f: "'5_목표매출_및_공통비용'!O26", v: periodCommonCost, s: 12 });
+  sh.setCell(4, 9, { f: "'5_공통비용'!H26", v: periodCommonCost, s: 12 });
   sh.setCell(4, 10, { v: '💡 판매채널별 10kg 미만/이상 주문건수와 비용·순이익을 분석합니다. 적자(<0) 항목은 붉은색으로 강조됩니다.', s: 22 });
   sh.merge('J4:P4');
   for (let c = 11; c <= 16; c++) sh.setCell(4, c, { v: '', s: 22 });
@@ -817,7 +817,7 @@ function buildSheet4() {
       v: raw.sortKey,
       s: 25
     });
-    sh.setCell(r, 19, { f: `'6_사용설명서_및_기준관리'!B${6 + idx}`, v: raw.chName, s: 23 });
+    sh.setCell(r, 19, { f: `'7_사용설명서_및_기준관리'!B${6 + idx}`, v: raw.chName, s: 23 });
     sh.setCell(r, 20, {
       f: `SUMIFS('2_일일매출_입력'!$D$6:$D$305,'2_일일매출_입력'!$C$6:$C$305,S${r},'2_일일매출_입력'!$B$6:$B$305,">="&$B$4,'2_일일매출_입력'!$B$6:$B$305,"<="&$C$4)`,
       v: raw.u10,
@@ -918,166 +918,121 @@ function buildSheet4() {
 }
 
 // ============================================================================
-// 시트 5: 5_목표매출_및_공통비용 (2026년 11월 ~ 2027년 10월 + 공통비용 8개 항목 입력 시트)
+// 시트 5: 5_공통비용 (공통비용 8개 항목 입력 시트 및 항목별·기간별 자동 집계)
 // ============================================================================
 function buildSheet5() {
-  const sh = new SheetBuilder('5_목표매출_및_공통비용', {
+  const sh = new SheetBuilder('5_공통비용', {
     freezeRow: 6,
     cols: [
       { min: 1, max: 1, width: 3 },
-      { min: 2, max: 2, width: 12 }, // 연월(26년 11월~)
-      { min: 3, max: 4, width: 15 }, // 시작일, 종료일
-      { min: 5, max: 7, width: 18 }, // 월별 목표매출, 일할 목표, 조회기간 반영 목표
-      { min: 8, max: 8, width: 4 },
-      { min: 9, max: 9, width: 15 }, // I: 발생일자
-      { min: 10, max: 10, width: 16 }, // J: 비용 항목 (8개 드롭다운)
-      { min: 11, max: 11, width: 24 }, // K: 상세 내역
-      { min: 12, max: 12, width: 15 }, // L: 금액 (원)
-      { min: 13, max: 13, width: 22 }, // M: 비고
-      { min: 14, max: 15, width: 14 }, // N: 귀속연월, O: 조회기간 포함여부
-      { min: 16, max: 16, width: 24 }  // P: 기타 항목 상세내역 입력 안내
+      { min: 2, max: 2, width: 15 }, // B: 발생일자
+      { min: 3, max: 3, width: 16 }, // C: 비용 항목 (8개 드롭다운)
+      { min: 4, max: 4, width: 24 }, // D: 상세 내역
+      { min: 5, max: 5, width: 16 }, // E: 금액 (원)
+      { min: 6, max: 6, width: 22 }, // F: 비고
+      { min: 7, max: 8, width: 14 }, // G: 귀속연월, H: 조회기간 포함여부
+      { min: 9, max: 9, width: 24 }  // I: 기타 항목 상세내역 입력 안내
     ]
   });
 
   sh.setRowHeight(2, 28);
-  sh.setCell(2, 2, { v: '매출·지출관리 스프레드시트(순이익/실적 자동계산) | 목표매출(2026.11~2027.10) 및 공통비용 입력 시트', s: 1 });
-  sh.merge('B2:P2');
+  sh.setCell(2, 2, { v: '매출·지출관리 스프레드시트(순이익/실적 자동계산) | 5. 공통비용 입력 및 자동 집계 시트', s: 1 });
+  sh.merge('B2:I2');
 
   sh.setRowHeight(3, 36);
   sh.setCell(3, 2, {
     v: '💡 [공통비용 입력 시트] ① 8개 항목(종묘비, 무기질비료비, 유기질비료비, 농약비, 수도광열비, 기타재료비, 고용노동비, 기타)을 드롭다운으로 선택해 한 행에 1건씩 [발생일자·비용 항목·상세 내역·금액·비고]를 입력하세요.\n② 같은 날짜와 같은 항목으로 여러 건 입력이 가능하며, ‘기타’ 선택 시 [상세 내역]을 입력하도록 안내합니다. 공통비용은 판매채널의 주문 1건당 비용과 별도로 집계·관리됩니다.',
     s: 22
   });
-  sh.merge('B3:P3');
-  for (let c = 3; c <= 16; c++) sh.setCell(3, c, { v: '', s: 22 });
+  sh.merge('B3:I3');
+  for (let c = 3; c <= 9; c++) sh.setCell(3, c, { v: '', s: 22 });
 
-  // 4행: 목표매출 총합계 확인 요약 바 & 공통비용 배분 기준
+  const allCommonSum = COMMON_COSTS.reduce((a, b) => a + b.amount, 0);
+
+  // 4행: 공통비용 배분 기준 및 합계 요약 바
   sh.setRowHeight(4, 26);
-  sh.setCell(4, 2, { v: '12개월 목표매출 총합계', s: 4 });
+  sh.setCell(4, 2, { v: '공통비용 배분 기준 선택', s: 3 });
   sh.merge('B4:C4');
-  sh.setCell(4, 3, { v: '', s: 4 });
-  sh.setCell(4, 4, { f: 'SUM(E7:E18)', v: totalAnnualTarget, s: 13 });
-  sh.setCell(4, 5, { v: '현재 조회기간 목표매출 합계', s: 4 });
-  sh.merge('E4:F4');
-  sh.setCell(4, 6, { v: '', s: 4 });
-  sh.setCell(4, 7, { f: 'SUM(G7:G18)', v: periodTarget, s: 13 });
+  sh.setCell(4, 3, { v: '', s: 3 });
+  sh.setCell(4, 4, { v: '매출액 비중 배분', s: 5 });
+  sh.merge('D4:E4');
+  sh.setCell(4, 5, { v: '', s: 5 });
 
-  sh.setCell(4, 9, { v: '공통비용 배분 기준 선택', s: 3 });
-  sh.merge('I4:J4');
-  sh.setCell(4, 10, { v: '', s: 3 });
-  sh.setCell(4, 11, { v: '매출액 비중 배분', s: 5 });
-  sh.merge('K4:L4');
-  sh.setCell(4, 12, { v: '', s: 5 });
+  sh.setCell(4, 6, { v: '현재 조회기간 공통비용 합계', s: 4 });
+  sh.setCell(4, 7, { f: 'H26', v: periodCommonCost, s: 13 });
+  sh.setCell(4, 8, { v: '전체 누적 공통비용 총합계', s: 4 });
+  sh.setCell(4, 9, { f: 'E26', v: allCommonSum, s: 13 });
 
-  // 6행: 좌·우 테이블 헤더
+  // 6행: 공통비용 입력 테이블 헤더
   sh.setRowHeight(6, 28);
-  const leftHeaders = [
-    [2, '대상 연월\n(26.11~27.10)', 4],
-    [3, '월 시작일', 4],
-    [4, '월 종료일', 4],
-    [5, '월별 목표매출 (원)\n(직접입력)', 3],
-    [6, '일할 목표매출 (원/일)\n(자동계산)', 4],
-    [7, '조회기간 반영 목표매출\n(대시보드 연동)', 4]
+  const commonHeaders = [
+    [2, '발생일자\n(직접입력)', 3],
+    [3, '비용 항목\n(8개 드롭다운)', 3],
+    [4, '상세 내역\n(기타 선택 시 필수)', 3],
+    [5, '금액 (원)\n(직접입력)', 3],
+    [6, '비고\n(메모)', 3],
+    [7, '귀속 연월\n(자동표시)', 4],
+    [8, '현재 조회기간\n포함 여부', 4],
+    [9, '상세 내역 입력 안내\n(자동검증)', 4]
   ];
-  for (const [c, t, st] of leftHeaders) sh.setCell(6, c, { v: t, s: st });
+  for (const [c, t, st] of commonHeaders) sh.setCell(6, c, { v: t, s: st });
 
-  const rightHeaders = [
-    [9, '발생일자\n(직접입력)', 3],
-    [10, '비용 항목\n(8개 드롭다운)', 3],
-    [11, '상세 내역\n(기타 선택 시 필수)', 3],
-    [12, '금액 (원)\n(직접입력)', 3],
-    [13, '비고\n(메모)', 3],
-    [14, '귀속 연월\n(자동표시)', 4],
-    [15, '현재 조회기간\n포함 여부', 4],
-    [16, '상세 내역 입력 안내\n(자동검증)', 4]
-  ];
-  for (const [c, t, st] of rightHeaders) sh.setCell(6, c, { v: t, s: st });
-
-  // 좌측: 2026년 11월 ~ 2027년 10월 (7행 ~ 18행)
-  TARGET_MONTHS.forEach((tm, idx) => {
-    const r = 7 + idx;
-    const startSer = dateToSerial(tm.start);
-    const endSer = dateToSerial(tm.end);
-    const dailyTarget = Math.round(tm.target / tm.days);
-    const appliedTarget = tm.ym === defaultYm ? tm.target : 0;
-
-    sh.setCell(r, 2, { v: tm.label, s: 10 });
-    sh.setCell(r, 3, { v: startSer, s: 11 });
-    sh.setCell(r, 4, { v: endSer, s: 11 });
-    sh.setCell(r, 5, { v: tm.target, s: 8 });
-    sh.setCell(r, 6, { f: `ROUND(E${r}/DAY(D${r}),0)`, v: dailyTarget, s: 12 });
-    sh.setCell(r, 7, {
-      f: `IF(OR('1_매출손익_대시보드'!$G$4<C${r},'1_매출손익_대시보드'!$F$4>D${r}),0,IF(AND('1_매출손익_대시보드'!$F$4<=C${r},'1_매출손익_대시보드'!$G$4>=D${r}),E${r},ROUND(E${r}*(MIN('1_매출손익_대시보드'!$G$4,D${r})-MAX('1_매출손익_대시보드'!$F$4,C${r})+1)/DAY(D${r}),0)))`,
-      v: appliedTarget,
-      s: 13
-    });
-  });
-
-  // 19행: 목표매출 합계
-  sh.setCell(19, 2, { v: '목표매출 합계', s: 16 });
-  sh.setCell(19, 3, { v: '2026.11 ~ 2027.10', s: 16 });
-  sh.setCell(19, 4, { v: '총 12개월', s: 16 });
-  sh.setCell(19, 5, { f: 'SUM(E7:E18)', v: totalAnnualTarget, s: 17 });
-  sh.setCell(19, 6, { f: 'ROUND(E19/365,0)', v: Math.round(totalAnnualTarget / 365), s: 17 });
-  sh.setCell(19, 7, { f: 'SUM(G7:G18)', v: periodTarget, s: 17 });
-
-  // 우측 공통비용 입력 행 (7행 ~ 25행)
+  // 공통비용 입력 행 (7행 ~ 25행)
   const maxCommonRows = 19;
   for (let i = 0; i < maxCommonRows; i++) {
     const r = 7 + i;
     const cItem = COMMON_COSTS[i];
-    const fGuide = `IF(AND(I${r}="",J${r}=""),"",IF(AND(J${r}="기타",TRIM(K${r})=""),"⚠️ '기타' 상세 내역을 입력해 주세요","정상"))`;
+    const fGuide = `IF(AND(B${r}="",C${r}=""),"",IF(AND(C${r}="기타",TRIM(D${r})=""),"⚠️ '기타' 상세 내역을 입력해 주세요","정상"))`;
     if (cItem) {
       const dSer = dateToSerial(cItem.date);
       const ym = cItem.date.slice(0, 7);
       const inc = (dSer >= defaultStartSerial && dSer <= defaultEndSerial) ? '포함' : '제외';
 
-      sh.setCell(r, 9, { v: dSer, s: 7 });
-      sh.setCell(r, 10, { v: cItem.category, s: 5 });
-      sh.setCell(r, 11, { v: cItem.detail || '', s: 6 });
-      sh.setCell(r, 12, { v: cItem.amount, s: 8 });
-      sh.setCell(r, 13, { v: cItem.note || '', s: 6 });
-      sh.setCell(r, 14, { f: `IF(I${r}="","",TEXT(I${r},"yyyy-mm"))`, v: ym, s: 10 });
-      sh.setCell(r, 15, {
-        f: `IF(I${r}="","",IF(AND(I${r}>='1_매출손익_대시보드'!$F$4,I${r}<='1_매출손익_대시보드'!$G$4),"포함","제외"))`,
+      sh.setCell(r, 2, { v: dSer, s: 7 });
+      sh.setCell(r, 3, { v: cItem.category, s: 5 });
+      sh.setCell(r, 4, { v: cItem.detail || '', s: 6 });
+      sh.setCell(r, 5, { v: cItem.amount, s: 8 });
+      sh.setCell(r, 6, { v: cItem.note || '', s: 6 });
+      sh.setCell(r, 7, { f: `IF(B${r}="","",TEXT(B${r},"yyyy-mm"))`, v: ym, s: 10 });
+      sh.setCell(r, 8, {
+        f: `IF(B${r}="","",IF(AND(B${r}>='1_매출손익_대시보드'!$F$4,B${r}<='1_매출손익_대시보드'!$G$4),"포함","제외"))`,
         v: inc,
         s: 10
       });
-      sh.setCell(r, 16, { f: fGuide, v: '정상', s: 10 });
+      sh.setCell(r, 9, { f: fGuide, v: '정상', s: 10 });
     } else {
-      sh.setCell(r, 9, { v: '', s: 7 });
-      sh.setCell(r, 10, { v: '', s: 5 });
-      sh.setCell(r, 11, { v: '', s: 6 });
-      sh.setCell(r, 12, { v: '', s: 8 });
-      sh.setCell(r, 13, { v: '', s: 6 });
-      sh.setCell(r, 14, { f: `IF(I${r}="","",TEXT(I${r},"yyyy-mm"))`, v: '', s: 10 });
-      sh.setCell(r, 15, {
-        f: `IF(I${r}="","",IF(AND(I${r}>='1_매출손익_대시보드'!$F$4,I${r}<='1_매출손익_대시보드'!$G$4),"포함","제외"))`,
+      sh.setCell(r, 2, { v: '', s: 7 });
+      sh.setCell(r, 3, { v: '', s: 5 });
+      sh.setCell(r, 4, { v: '', s: 6 });
+      sh.setCell(r, 5, { v: '', s: 8 });
+      sh.setCell(r, 6, { v: '', s: 6 });
+      sh.setCell(r, 7, { f: `IF(B${r}="","",TEXT(B${r},"yyyy-mm"))`, v: '', s: 10 });
+      sh.setCell(r, 8, {
+        f: `IF(B${r}="","",IF(AND(B${r}>='1_매출손익_대시보드'!$F$4,B${r}<='1_매출손익_대시보드'!$G$4),"포함","제외"))`,
         v: '',
         s: 10
       });
-      sh.setCell(r, 16, { f: fGuide, v: '', s: 10 });
+      sh.setCell(r, 9, { f: fGuide, v: '', s: 10 });
     }
   }
 
-  const allCommonSum = COMMON_COSTS.reduce((a, b) => a + b.amount, 0);
-  sh.setCell(26, 9, { v: '공통비용 총합계', s: 16 });
-  sh.setCell(26, 10, { v: '8개 항목 누적 합계', s: 16 });
-  sh.setCell(26, 11, { v: '주문 1건당 비용과 별도', s: 16 });
-  sh.setCell(26, 12, { f: 'SUM(L7:L25)', v: allCommonSum, s: 17 });
-  sh.setCell(26, 13, { v: '', s: 16 });
-  sh.setCell(26, 14, { v: '조회기간 공통비용 →', s: 16 });
-  sh.setCell(26, 15, {
-    f: 'SUMIFS(L7:L25,I7:I25,">="&\'1_매출손익_대시보드\'!$F$4,I7:I25,"<="&\'1_매출손익_대시보드\'!$G$4)',
+  sh.setCell(26, 2, { v: '공통비용 총합계', s: 16 });
+  sh.setCell(26, 3, { v: '8개 항목 누적 합계', s: 16 });
+  sh.setCell(26, 4, { v: '주문 1건당 비용과 별도', s: 16 });
+  sh.setCell(26, 5, { f: 'SUM(E7:E25)', v: allCommonSum, s: 17 });
+  sh.setCell(26, 6, { v: '', s: 16 });
+  sh.setCell(26, 7, { v: '조회기간 공통비용 →', s: 16 });
+  sh.setCell(26, 8, {
+    f: 'SUMIFS(E7:E25,B7:B25,">="&\'1_매출손익_대시보드\'!$F$4,B7:B25,"<="&\'1_매출손익_대시보드\'!$G$4)',
     v: periodCommonCost,
     s: 17
   });
-  sh.setCell(26, 16, { v: '← 대시보드·손익분석 자동 반영', s: 16 });
+  sh.setCell(26, 9, { v: '← 대시보드·손익분석 자동 반영', s: 16 });
 
   // 28~38행: 공통비용 8개 항목별 지출 집계표 & 그래프 영역 (시트 5)
   sh.setRowHeight(28, 24);
   sh.setCell(28, 2, { v: '📊 공통비용 8개 항목별 합계 및 총합계 (선택기간 & 전체누적)', s: 2 });
-  sh.setCell(28, 9, { v: '📈 공통비용 8개 항목별 지출 비중 및 금액 비교 그래프', s: 2 });
+  sh.setCell(28, 8, { v: '📈 공통비용 8개 항목별 지출 비중 및 금액 비교 그래프', s: 2 });
 
   sh.setRowHeight(29, 24);
   sh.setCell(29, 2, { v: '비용 항목 (8개 구분)', s: 4 });
@@ -1110,13 +1065,13 @@ function buildSheet5() {
     sh.setCell(r, 3, { v: '', s: 23 });
     sh.merge(`B${r}:C${r}`);
     sh.setCell(r, 4, {
-      f: `SUMIFS($L$7:$L$25,$J$7:$J$25,B${r},$I$7:$I$25,">="&'1_매출손익_대시보드'!$F$4,$I$7:$I$25,"<="&'1_매출손익_대시보드'!$G$4)`,
+      f: `SUMIFS($E$7:$E$25,$C$7:$C$25,B${r},$B$7:$B$25,">="&'1_매출손익_대시보드'!$F$4,$B$7:$B$25,"<="&'1_매출손익_대시보드'!$G$4)`,
       v: pAmt,
       s: 25
     });
     sh.setCell(r, 5, { f: `IFERROR(D${r}/$D$38,0)`, v: periodCommonCost > 0 ? pAmt / periodCommonCost : 0, s: 14 });
     sh.setCell(r, 6, {
-      f: `SUMIF($J$7:$J$25,B${r},$L$7:$L$25)`,
+      f: `SUMIF($C$7:$C$25,B${r},$E$7:$E$25)`,
       v: tAmt,
       s: 25
     });
@@ -1133,7 +1088,7 @@ function buildSheet5() {
 
   sh.addValidation({
     type: 'list',
-    sqref: 'K4:L4',
+    sqref: 'D4:E4',
     formula1: '"매출액 비중 배분,주문건수 비중 배분,배분 안 함(전체에서만 차감)"',
     promptTitle: '공통비용 배분 기준',
     prompt: '채널별 손익 분석 시 공통비용을 어떤 기준으로 배분할지 선택하세요.'
@@ -1141,15 +1096,15 @@ function buildSheet5() {
 
   sh.addValidation({
     type: 'list',
-    sqref: 'J7:J25',
+    sqref: 'C7:C25',
     formula1: `"${COMMON_COST_CATEGORIES.join(',')}"`,
     promptTitle: '공통비용 8개 항목 선택',
     prompt: '종묘비, 무기질비료비, 유기질비료비, 농약비, 수도광열비, 기타재료비, 고용노동비, 기타 중 선택하세요. (기타 선택 시 상세 내역을 입력해 주세요)'
   });
 
   sh.addCondFormat({
-    sqref: 'P7:P25',
-    rules: [{ type: 'containsText', text: '⚠️', topLeftCell: 'P7', dxfId: 1 }]
+    sqref: 'I7:I25',
+    rules: [{ type: 'containsText', text: '⚠️', topLeftCell: 'I7', dxfId: 1 }]
   });
 
   sh.drawingRelId = 'rId1';
@@ -1158,10 +1113,90 @@ function buildSheet5() {
 }
 
 // ============================================================================
-// 시트 6: 6_사용설명서_및_기준관리
+// 시트 6: 6_목표매출 (2026년 11월 ~ 2027년 10월 월별 목표매출 설정 시트)
 // ============================================================================
 function buildSheet6() {
-  const sh = new SheetBuilder('6_사용설명서_및_기준관리', {
+  const sh = new SheetBuilder('6_목표매출', {
+    freezeRow: 6,
+    cols: [
+      { min: 1, max: 1, width: 3 },
+      { min: 2, max: 2, width: 14 }, // B: 대상 연월(26년 11월~)
+      { min: 3, max: 4, width: 16 }, // C: 시작일, D: 종료일
+      { min: 5, max: 7, width: 20 }  // E: 월별 목표매출, F: 일할 목표, G: 조회기간 반영 목표
+    ]
+  });
+
+  sh.setRowHeight(2, 28);
+  sh.setCell(2, 2, { v: '매출·지출관리 스프레드시트(순이익/실적 자동계산) | 6. 목표매출 설정 시트 (2026.11~2027.10)', s: 1 });
+  sh.merge('B2:G2');
+
+  sh.setRowHeight(3, 36);
+  sh.setCell(3, 2, {
+    v: '💡 [목표매출 설정 안내] ① [2026년 11월 ~ 2027년 10월] 각 월의 목표매출액(노란색 칸)을 입력하면 12개월 총 목표매출과 일할 목표매출이 자동 계산됩니다.\n② 대시보드에서 조회 기간을 변경하면 해당 기간에 속한 목표매출이 자동으로 합산되어 목표 달성률(%)에 반영됩니다.',
+    s: 22
+  });
+  sh.merge('B3:G3');
+  for (let c = 3; c <= 7; c++) sh.setCell(3, c, { v: '', s: 22 });
+
+  // 4행: 목표매출 총합계 확인 요약 바
+  sh.setRowHeight(4, 26);
+  sh.setCell(4, 2, { v: '12개월 목표매출 총합계', s: 4 });
+  sh.merge('B4:C4');
+  sh.setCell(4, 3, { v: '', s: 4 });
+  sh.setCell(4, 4, { f: 'SUM(E7:E18)', v: totalAnnualTarget, s: 13 });
+  sh.setCell(4, 5, { v: '현재 조회기간 목표매출 합계', s: 4 });
+  sh.merge('E4:F4');
+  sh.setCell(4, 6, { v: '', s: 4 });
+  sh.setCell(4, 7, { f: 'SUM(G7:G18)', v: periodTarget, s: 13 });
+
+  // 6행: 목표매출 테이블 헤더
+  sh.setRowHeight(6, 28);
+  const targetHeaders = [
+    [2, '대상 연월\n(26.11~27.10)', 4],
+    [3, '월 시작일', 4],
+    [4, '월 종료일', 4],
+    [5, '월별 목표매출 (원)\n(직접입력)', 3],
+    [6, '일할 목표매출 (원/일)\n(자동계산)', 4],
+    [7, '조회기간 반영 목표매출\n(대시보드 연동)', 4]
+  ];
+  for (const [c, t, st] of targetHeaders) sh.setCell(6, c, { v: t, s: st });
+
+  // 2026년 11월 ~ 2027년 10월 (7행 ~ 18행)
+  TARGET_MONTHS.forEach((tm, idx) => {
+    const r = 7 + idx;
+    const startSer = dateToSerial(tm.start);
+    const endSer = dateToSerial(tm.end);
+    const dailyTarget = Math.round(tm.target / tm.days);
+    const appliedTarget = tm.ym === defaultYm ? tm.target : 0;
+
+    sh.setCell(r, 2, { v: tm.label, s: 10 });
+    sh.setCell(r, 3, { v: startSer, s: 11 });
+    sh.setCell(r, 4, { v: endSer, s: 11 });
+    sh.setCell(r, 5, { v: tm.target, s: 8 });
+    sh.setCell(r, 6, { f: `ROUND(E${r}/DAY(D${r}),0)`, v: dailyTarget, s: 12 });
+    sh.setCell(r, 7, {
+      f: `IF(OR('1_매출손익_대시보드'!$G$4<C${r},'1_매출손익_대시보드'!$F$4>D${r}),0,IF(AND('1_매출손익_대시보드'!$F$4<=C${r},'1_매출손익_대시보드'!$G$4>=D${r}),E${r},ROUND(E${r}*(MIN('1_매출손익_대시보드'!$G$4,D${r})-MAX('1_매출손익_대시보드'!$F$4,C${r})+1)/DAY(D${r}),0)))`,
+      v: appliedTarget,
+      s: 13
+    });
+  });
+
+  // 19행: 목표매출 합계
+  sh.setCell(19, 2, { v: '목표매출 합계', s: 16 });
+  sh.setCell(19, 3, { v: '2026.11 ~ 2027.10', s: 16 });
+  sh.setCell(19, 4, { v: '총 12개월', s: 16 });
+  sh.setCell(19, 5, { f: 'SUM(E7:E18)', v: totalAnnualTarget, s: 17 });
+  sh.setCell(19, 6, { f: 'ROUND(E19/365,0)', v: Math.round(totalAnnualTarget / 365), s: 17 });
+  sh.setCell(19, 7, { f: 'SUM(G7:G18)', v: periodTarget, s: 17 });
+
+  return sh;
+}
+
+// ============================================================================
+// 시트 7: 7_사용설명서_및_기준관리
+// ============================================================================
+function buildSheet7() {
+  const sh = new SheetBuilder('7_사용설명서_및_기준관리', {
     freezeRow: 5,
     cols: [
       { min: 1, max: 1, width: 3 },
@@ -1195,11 +1230,11 @@ function buildSheet6() {
   }
 
   const guides = [
-    ['1. 목표설정 기간 (26.11~27.10)', '• 목표매출 설정 기간은 [2026년 11월]부터 [2027년 10월]까지 12개월로 설정되어 있습니다.\n• [5_목표매출_및_공통비용] 시트 상단과 하단에서 12개월 목표매출 총합계와 현재 조회기간의 목표매출 합계를 바로 확인할 수 있습니다.'],
+    ['1. 공통비용 및 목표매출 시트 분리', '• [5_공통비용] 시트에서는 8개 항목(종묘비, 무기질비료비, 유기질비료비, 농약비, 수도광열비, 기타재료비, 고용노동비, 기타)별 공통비용을 입력·집계합니다.\n• [6_목표매출] 시트에서는 2026년 11월 ~ 2027년 10월(12개월) 월별 목표매출을 설정하고 기간별 목표합계를 확인합니다.'],
     ['2. 10kg 미만 / 10kg 이상 주문 구분', '• [2_일일매출_입력] 시트에서 하루 주문을 [10kg 미만 주문건수]와 [10kg 이상 주문건수]로 나누어 입력합니다.\n• 무게 구간별로 택배비가 다르게 설정되어 있어 각 구간 건수에 맞는 택배비와 부자재비(박스+포장비닐+리플렛)가 자동 합산됩니다.'],
     ['3. 박스·포장비닐·리플렛 비용 설정', '• [3_채널별_비용설정] 시트에서 채널별·기간별로 [10kg 미만 배송비], [10kg 이상 배송비], 그리고 주문 1건당 [박스 비용], [포장비닐 비용], [리플렛 비용]을 각각 등록합니다.\n• 10kg 미만 1건당 비용 = 10kg 미만 배송비 + 박스 + 포장비닐 + 리플렛\n• 10kg 이상 1건당 비용 = 10kg 이상 배송비 + 박스 + 포장비닐 + 리플렛'],
     ['4. 비용 변경 시 기간 이력 관리', '• 택배비나 박스비, 수수료율이 바뀌면 기존 설정 행을 덮어쓰지 마세요.\n• 기존 설정의 [적용 종료일]을 입력한 뒤, 아래 새 행에 [새로운 적용 시작일]과 변경된 단가를 등록하면 과거 매출에는 당시 단가가 그대로 유지됩니다.'],
-    ['5. 공판장 채널 및 공통비용 그래프', '• 기본 판매채널에 [공판장]을 포함한 8개 채널(농라, 스마트스토어, 카톡, 고흥몰, 남도장터, 로컬푸드, 공판장, 기타)이 등록되어 있습니다.\n• [1_매출손익_대시보드]와 [5_목표매출_및_공통비용] 시트에서 공통비용 항목별(월 광고선전비, 임대료, 인건비, 공과금, 기타) 지출 비중 도넛 그래프와 금액 비교 그래프를 바로 확인할 수 있습니다.']
+    ['5. 공판장 채널 및 공통비용 그래프', '• 기본 판매채널에 [공판장]을 포함한 8개 채널(농라, 스마트스토어, 카톡, 고흥몰, 남도장터, 로컬푸드, 공판장, 기타)이 등록되어 있습니다.\n• [1_매출손익_대시보드]와 [5_공통비용] 시트에서 공통비용 8개 항목별 지출 비중 도넛 그래프와 금액 비교 그래프를 바로 확인할 수 있습니다.']
   ];
 
   guides.forEach(([title, desc], idx) => {
@@ -1228,8 +1263,9 @@ function generateAll() {
   const { sh: sheet4, sortedChannels } = buildSheet4();
   const { sh: sheet5, sheet5CommonCache } = buildSheet5();
   const sheet6 = buildSheet6();
+  const sheet7 = buildSheet7();
 
-  const sheets = [sheet1, sheet2, sheet3, sheet4, sheet5, sheet6];
+  const sheets = [sheet1, sheet2, sheet3, sheet4, sheet5, sheet6, sheet7];
 
   const chart1Xml = buildBarChartXml({
     title: '전체 매출성과 (목표매출 vs 총 매출액 vs 총 순이익)',
@@ -1345,31 +1381,31 @@ function generateAll() {
 
   const chart7Xml = buildDoughnutChartXml({
     title: '공통비용 8개 항목별 지출 비중 (선택 기간)',
-    categoriesFormula: "'5_목표매출_및_공통비용'!$B$30:$B$37",
+    categoriesFormula: "'5_공통비용'!$B$30:$B$37",
     categoriesCache: sheet5CommonCache.cats,
-    seriesNameFormula: "'5_목표매출_및_공통비용'!$D$29",
+    seriesNameFormula: "'5_공통비용'!$D$29",
     seriesName: '선택기간 합계 (원)',
-    valuesFormula: "'5_목표매출_및_공통비용'!$D$30:$D$37",
+    valuesFormula: "'5_공통비용'!$D$30:$D$37",
     valuesCache: sheet5CommonCache.periodAmts
   });
 
   const chart8Xml = buildBarChartXml({
     title: '공통비용 8개 항목별 지출액 비교 (선택기간 vs 전체누적)',
-    categoriesFormula: "'5_목표매출_및_공통비용'!$B$30:$B$37",
+    categoriesFormula: "'5_공통비용'!$B$30:$B$37",
     categoriesCache: sheet5CommonCache.cats,
     seriesList: [
       {
         name: '선택기간 합계 (원)',
-        nameFormula: "'5_목표매출_및_공통비용'!$D$29",
+        nameFormula: "'5_공통비용'!$D$29",
         color: '2B4CBE',
-        valuesFormula: "'5_목표매출_및_공통비용'!$D$30:$D$37",
+        valuesFormula: "'5_공통비용'!$D$30:$D$37",
         valuesCache: sheet5CommonCache.periodAmts
       },
       {
         name: '전체 누적 합계 (원)',
-        nameFormula: "'5_목표매출_및_공통비용'!$F$29",
+        nameFormula: "'5_공통비용'!$F$29",
         color: '92ADD0',
-        valuesFormula: "'5_목표매출_및_공통비용'!$F$30:$F$37",
+        valuesFormula: "'5_공통비용'!$F$30:$F$37",
         valuesCache: sheet5CommonCache.totalAmts
       }
     ]
@@ -1388,8 +1424,8 @@ function generateAll() {
   ]);
 
   const drawing3Xml = buildDrawingXml([
-    { fromCol: 8, fromRow: 29, toCol: 11, toRow: 44, relId: 'rId1' },
-    { fromCol: 11, fromRow: 29, toCol: 14, toRow: 44, relId: 'rId2' }
+    { fromCol: 7, fromRow: 29, toCol: 10, toRow: 44, relId: 'rId1' },
+    { fromCol: 10, fromRow: 29, toCol: 14, toRow: 44, relId: 'rId2' }
   ]);
 
   const files = [];
@@ -1408,6 +1444,7 @@ function generateAll() {
   <Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="/xl/worksheets/sheet5.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="/xl/worksheets/sheet6.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/worksheets/sheet7.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>
   <Override PartName="/xl/drawings/drawing2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>
   <Override PartName="/xl/drawings/drawing3.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>
@@ -1447,7 +1484,7 @@ function generateAll() {
     data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   ${sheets.map((_, idx) => `<Relationship Id="rId${idx + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${idx + 1}.xml"/>`).join('\n  ')}
-  <Relationship Id="rId7" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId8" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`
   });
 

@@ -368,8 +368,8 @@ function renderAll() {
   // 시트4: 판매채널별 손익 분석 렌더링
   renderAnalysisTab(periodRows, actualSales, totalOrders, periodCommonCost);
 
-  // 시트5: 목표매출(26.11~27.10) 및 공통비용 설정 렌더링
-  renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, periodCommonCost);
+  // 시트5(공통비용) 및 시트6(목표매출) 렌더링
+  renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, periodCommonCost, actualSales, achieveRate);
 
   // 시트6: 판매채널 마스터 목록 렌더링
   renderMasterSelectsAndLists();
@@ -1077,7 +1077,7 @@ function syncCommonEtcGuide() {
   }
 }
 
-function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, periodCommonCost) {
+function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, periodCommonCost, actualSales = 0, achieveRate = 0) {
   const sumAllCommon = state.commonCosts.reduce((a, b) => a + (Number(b.amount) || 0), 0);
   const sum2026Common = state.commonCosts
     .filter(c => String(c.date || '').startsWith('2026-'))
@@ -1087,17 +1087,31 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
     .reduce((a, b) => a + (Number(b.amount) || 0), 0);
   const periodCommonCount = state.commonCosts.filter(c => c.date >= start && c.date <= end).length;
 
+  // 시트 6 (목표매출) 요약 배너
   document.getElementById('tab5TotalTargetSum').textContent = fmtWon(totalAnnualTarget);
   document.getElementById('tab5AppliedTargetSum').textContent = fmtWon(periodTarget);
-  document.getElementById('tab5PeriodCommonSum').textContent = fmtWon(periodCommonCost);
+  const dailyAvgTargetEl = document.getElementById('tab6DailyAvgTargetSub');
+  if (dailyAvgTargetEl) {
+    dailyAvgTargetEl.textContent = `일평균 목표 ${fmtWon(Math.round(totalAnnualTarget / 365))}/일`;
+  }
+  const actualSalesSumEl = document.getElementById('tab6ActualSalesSum');
+  if (actualSalesSumEl) {
+    actualSalesSumEl.textContent = `${fmtWon(actualSales)} (${fmtPct(achieveRate, 1)})`;
+  }
 
+  // 시트 5 (공통비용) 요약 배너
+  document.getElementById('tab5PeriodCommonSum').textContent = fmtWon(periodCommonCost);
   const periodCountEl = document.getElementById('tab5PeriodCommonCountSub');
   if (periodCountEl) {
     periodCountEl.textContent = `조회기간 ${fmtNum(periodCommonCount)}건 (주문 1건당 비용과 별도)`;
   }
-  const yearlyCommonEl = document.getElementById('tab5YearlyCommonSum');
-  if (yearlyCommonEl) {
-    yearlyCommonEl.textContent = `26년 ${fmtWon(sum2026Common)} / 27년 ${fmtWon(sum2027Common)}`;
+  const y2026El = document.getElementById('tab5Year2026CommonSum');
+  if (y2026El) {
+    y2026El.textContent = fmtWon(sum2026Common);
+  }
+  const y2027El = document.getElementById('tab5Year2027CommonSum');
+  if (y2027El) {
+    y2027El.textContent = fmtWon(sum2027Common);
   }
   const totalCommonEl = document.getElementById('tab5TotalCommonSum');
   if (totalCommonEl) {

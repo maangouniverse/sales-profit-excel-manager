@@ -31,8 +31,9 @@
       <button class="tab-btn" data-tab="tab-daily" data-subtitle="| 일일 매출·주문내역 입력">📝 2. 일일 매출 입력 (10kg 미만/이상)</button>
       <button class="tab-btn" data-tab="tab-rates" data-subtitle="| 판매채널·기간별 비용 설정">⚙️ 3. 판매채널·기간별 비용 설정</button>
       <button class="tab-btn" data-tab="tab-analysis" data-subtitle="| 판매채널별 손익 상세현황">📈 4. 판매채널별 손익 분석</button>
-      <button class="tab-btn" data-tab="tab-targets" data-subtitle="| 목표매출(26.11~27.10) 및 공통비용 입력 시트">🎯 5. 목표매출·공통비용 입력 시트</button>
-      <button class="tab-btn" data-tab="tab-guide" data-subtitle="| 사용 설명서 및 채널 관리">📖 6. 사용 설명서·채널 관리</button>
+      <button class="tab-btn" data-tab="tab-common" data-subtitle="| 공통비용 입력 및 집계 시트">🏢 5. 공통비용</button>
+      <button class="tab-btn" data-tab="tab-targets" data-subtitle="| 목표매출(26.11~27.10) 설정 시트">🎯 6. 목표매출</button>
+      <button class="tab-btn" data-tab="tab-guide" data-subtitle="| 사용 설명서 및 채널 관리">📖 7. 사용 설명서·채널 관리</button>
     </nav>
   </header>
 
@@ -584,25 +585,25 @@
     </section>
 
     <!-- ================================================================== -->
-    <!-- 시트 5: 목표매출(2026.11~2027.10) 및 공통비용 입력 시트 -->
+    <!-- 시트 5: 5. 공통비용 (입력 시트 및 항목별·월별·연도별·조회기간별 자동 집계) -->
     <!-- ================================================================== -->
-    <section id="tab-targets" class="tab-panel">
-      <!-- 목표매출 & 공통비용 상단 요약 배너 -->
+    <section id="tab-common" class="tab-panel">
+      <!-- 공통비용 상단 요약 배너 -->
       <div class="target-summary-strip soft-card">
-        <div class="target-sum-box">
-          <span>🎯 12개월 목표매출 총합계 (26.11~27.10)</span>
-          <strong id="tab5TotalTargetSum">0원</strong>
-          <small id="tab5AppliedTargetSub" style="color:#64748b; font-size:12px;">조회기간 목표매출: <span id="tab5AppliedTargetSum">0원</span></small>
-        </div>
         <div class="target-sum-box primary">
-          <span>📅 조회기간 공통비용 합계</span>
+          <span>📅 현재 조회기간 공통비용 합계</span>
           <strong id="tab5PeriodCommonSum">0원</strong>
           <small id="tab5PeriodCommonCountSub" style="color:#2b4cbe; font-size:12px; font-weight:600;">조회기간 0건 (주문 1건당 비용과 별도)</small>
         </div>
         <div class="target-sum-box">
-          <span>📆 연도별 공통비용 합계 (발생일자 기준)</span>
-          <strong id="tab5YearlyCommonSum">26년 0원 / 27년 0원</strong>
-          <small style="color:#64748b; font-size:12px;">발생일자 연도 기준 자동 집계</small>
+          <span>📆 2026년 공통비용 합계 (발생일자 기준)</span>
+          <strong id="tab5Year2026CommonSum">0원</strong>
+          <small style="color:#64748b; font-size:12px;">2026년 발생분 자동 집계</small>
+        </div>
+        <div class="target-sum-box">
+          <span>📆 2027년 공통비용 합계 (발생일자 기준)</span>
+          <strong id="tab5Year2027CommonSum">0원</strong>
+          <small style="color:#64748b; font-size:12px;">2027년 발생분 자동 집계</small>
         </div>
         <div class="target-sum-box">
           <span>🏢 공통비용 총합계 (전체 누적)</span>
@@ -777,10 +778,37 @@
           </table>
         </div>
       </div>
+    </section>
 
-      <hr class="section-divider" />
+    <!-- ================================================================== -->
+    <!-- 시트 6: 6. 목표매출 (2026.11~2027.10 월별 목표매출 설정 시트) -->
+    <!-- ================================================================== -->
+    <section id="tab-targets" class="tab-panel">
+      <!-- 목표매출 상단 요약 배너 -->
+      <div class="target-summary-strip soft-card">
+        <div class="target-sum-box">
+          <span>🎯 목표설정 대상 기간</span>
+          <strong>2026년 11월 ~ 2027년 10월 (12개월)</strong>
+          <small style="color:#64748b; font-size:12px;">연간 365일 기준</small>
+        </div>
+        <div class="target-sum-box primary">
+          <span>💰 12개월 목표매출 총합계</span>
+          <strong id="tab5TotalTargetSum">0원</strong>
+          <small id="tab6DailyAvgTargetSub" style="color:#2b4cbe; font-size:12px; font-weight:600;">일평균 목표 0원/일</small>
+        </div>
+        <div class="target-sum-box">
+          <span>📅 현재 선택된 조회기간 목표매출 합계</span>
+          <strong id="tab5AppliedTargetSum">0원</strong>
+          <small style="color:#64748b; font-size:12px;">선택 기간 일할 자동 계산</small>
+        </div>
+        <div class="target-sum-box">
+          <span>📈 조회기간 실제매출 · 목표 달성률</span>
+          <strong id="tab6ActualSalesSum">0원 (0.0%)</strong>
+          <small style="color:#64748b; font-size:12px;">대시보드 실시간 연동</small>
+        </div>
+      </div>
 
-      <!-- 3. 월별 목표매출 설정 (2026년 11월 ~ 2027년 10월) -->
+      <!-- 월별 목표매출 설정 (2026년 11월 ~ 2027년 10월) -->
       <div class="soft-card">
         <div class="card-header">
           <h3>🎯 월별 목표매출 설정 (2026년 11월 ~ 2027년 10월)</h3>
@@ -809,7 +837,7 @@
     </section>
 
     <!-- ================================================================== -->
-    <!-- 시트 6: 사용 설명서 및 판매채널 관리 -->
+    <!-- 시트 7: 사용 설명서 및 판매채널 관리 -->
     <!-- ================================================================== -->
     <section id="tab-guide" class="tab-panel">
       <div class="two-col-grid">
@@ -844,14 +872,14 @@
               <p>• <code>순이익(공통비 전)</code> = 일일 매출액 − 판매채널 비용 &nbsp;|&nbsp; <code>최종 순이익(공통비 후)</code> = 순이익(공통비 전) − 공통비용 총합계</p>
             </div>
             <div class="guide-item">
-              <strong>3. 공통비용 8개 항목 입력 및 월별·연도별·조회기간별 자동 집계</strong>
+              <strong>3. [5. 공통비용] 시트: 8개 항목 입력 및 월별·연도별·조회기간별 자동 집계</strong>
               <p>• <code>8개 비용 항목</code>: 종묘비, 무기질비료비, 유기질비료비, 농약비, 수도광열비, 기타재료비, 고용노동비, 기타 (드롭다운 선택)</p>
               <p>• 한 행에 한 건씩 <strong>[발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고]</strong>를 입력하며, 같은 날짜와 같은 항목으로 여러 건 입력이 가능합니다. (<code>기타</code> 선택 시 상세 내역 입력 안내)</p>
               <p>• 공통비용은 판매채널의 주문 1건당 비용과 <strong>별도로 관리</strong>되며, 발생일자 기준으로 월별·연도별·조회기간별 합계 및 손익에 자동 반영됩니다.</p>
             </div>
             <div class="guide-item">
-              <strong>4. 목표매출 기간 (2026년 11월 ~ 2027년 10월) 및 합계 확인</strong>
-              <p>• [5. 목표매출·공통비용 입력 시트]에서 2026년 11월부터 2027년 10월까지 12개월 목표매출을 설정하며, 상단 배너와 표 하단에서 <strong>12개월 목표매출 총합계</strong>와 <strong>선택기간 목표매출 합계</strong>를 즉시 확인할 수 있습니다.</p>
+              <strong>4. [6. 목표매출] 시트: 목표매출 기간 (2026년 11월 ~ 2027년 10월) 및 합계 확인</strong>
+              <p>• [6. 목표매출] 시트에서 2026년 11월부터 2027년 10월까지 12개월 목표매출을 설정하며, 상단 배너와 표 하단에서 <strong>12개월 목표매출 총합계</strong>와 <strong>선택기간 목표매출 합계</strong>를 즉시 확인할 수 있습니다.</p>
             </div>
           </div>
         </div>
