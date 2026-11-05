@@ -1,0 +1,9 @@
+{
+  "name": "sales-profit-excel-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "거래처·판매채널별 매출·순이익 관리 프로그램 (클라우드 계정 동기화 지원)",
+  "dependencies": {
+    "@vercel/blob": "^2.0.0"
+  }
+}

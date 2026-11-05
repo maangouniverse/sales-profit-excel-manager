@@ -43,8 +43,99 @@ const INITIAL_STATE = {
 };
 
 const STORAGE_KEY = 'sales_profit_manager_state_v4';
+const LEGACY_STORAGE_KEYS = [
+  'sales_profit_manager_state_v3',
+  'sales_profit_manager_state_v2',
+  'sales_profit_manager_state_v1'
+];
+const AUTH_STORAGE_KEY = 'sales_profit_manager_auth_v1';
+
+let loadErrorState = false;
+let loadErrorMsg = '';
+let isSyncingCloud = false;
+let cloudRevision = 0;
+let authCreds = loadAuthCreds();
 let state = loadState();
 let charts = {};
+
+function normalizeLoadedState(parsed) {
+  if (!parsed || typeof parsed !== 'object') {
+    return JSON.parse(JSON.stringify(INITIAL_STATE));
+  }
+  const base = JSON.parse(JSON.stringify(INITIAL_STATE));
+  parsed.channels = Array.isArray(parsed.channels) && parsed.channels.length > 0
+    ? Array.from(new Set([...base.channels, ...parsed.channels.filter(Boolean)]))
+    : [...base.channels];
+  parsed.commonCostCategories = [...COMMON_COST_CATEGORIES];
+
+  if (Array.isArray(parsed.targetMonths) && parsed.targetMonths.length === 12) {
+    parsed.targetMonths = base.targetMonths.map(def => {
+      const found = parsed.targetMonths.find(t => t && t.ym === def.ym);
+      return {
+        ...def,
+        target: found ? Math.max(0, Number(found.target) || 0) : 0
+      };
+    });
+  } else {
+    parsed.targetMonths = base.targetMonths;
+  }
+
+  if (!Array.isArray(parsed.channelRates) || parsed.channelRates.length === 0) {
+    parsed.channelRates = base.channelRates;
+  }
+
+  if (!Array.isArray(parsed.dailySales)) {
+    parsed.dailySales = [];
+  } else {
+    parsed.dailySales = parsed.dailySales.map((s, idx) => ({
+      id: s.id || (Date.now() + idx),
+      date: s.date || '2026-11-01',
+      channel: s.channel || '농라',
+      ordersUnder10: Math.max(0, Math.round(Number(s.ordersUnder10 !== undefined ? s.ordersUnder10 : (s.orders || 0)) || 0)),
+      ordersOver10: Math.max(0, Math.round(Number(s.ordersOver10) || 0)),
+      sales: Math.max(0, Number(s.sales) || 0),
+      extraCost: Math.max(0, Number(s.extraCost) || 0),
+      note: s.note || ''
+    }));
+  }
+
+  if (Array.isArray(parsed.commonCosts)) {
+    parsed.commonCosts = parsed.commonCosts.map((c, idx) => {
+      const isValidCat = COMMON_COST_CATEGORIES.includes(c.category);
+      return {
+        ...c,
+        id: c.id || (Date.now() + 10000 + idx),
+        date: c.date || '2026-11-01',
+        category: isValidCat ? c.category : '기타',
+        detail: c.detail !== undefined ? c.detail : (!isValidCat && c.category ? c.category : ''),
+        amount: Number(c.amount) || 0,
+        note: c.note || ''
+      };
+    });
+  } else {
+    parsed.commonCosts = [];
+  }
+  return parsed;
+}
+
+function hasMeaningfulData(st) {
+  if (!st || typeof st !== 'object') return false;
+  if (Array.isArray(st.dailySales) && st.dailySales.length > 0) return true;
+  if (Array.isArray(st.commonCosts) && st.commonCosts.length > 0) return true;
+  if (Array.isArray(st.targetMonths) && st.targetMonths.some(t => (Number(t.target) || 0) > 0)) return true;
+  if (Array.isArray(st.channelRates) && st.channelRates.some(r =>
+    (Number(r.feeRate) || 0) > 0 ||
+    (Number(r.shipUnder10) || 0) > 0 ||
+    (Number(r.shipOver10) || 0) > 0 ||
+    (Number(r.boxCost) || 0) > 0 ||
+    (Number(r.vinylCost) || 0) > 0 ||
+    (Number(r.leafletCost) || 0) > 0 ||
+    Boolean((r.end || '').trim()) ||
+    Boolean((r.note || '').trim())
+  )) return true;
+  if (Array.isArray(st.channels) && st.channels.length > INITIAL_STATE.channels.length) return true;
+  return false;
+}
 
 // 도넛 차트 조각 내부에 흰색 퍼센트(26%, 24% 등)를 표시하는 플러그인 (매출성과.png 스타일)
 const doughnutPercentPlugin = {
@@ -81,28 +172,113 @@ function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved);
-      parsed.commonCostCategories = [...COMMON_COST_CATEGORIES];
-      if (Array.isArray(parsed.commonCosts)) {
-        parsed.commonCosts = parsed.commonCosts.map(c => {
-          const isValidCat = COMMON_COST_CATEGORIES.includes(c.category);
-          return {
-            ...c,
-            category: isValidCat ? c.category : '기타',
-            detail: c.detail !== undefined ? c.detail : (!isValidCat && c.category ? c.category : ''),
-            amount: Number(c.amount) || 0,
-            note: c.note || ''
-          };
-        });
-      } else {
-        parsed.commonCosts = [];
+      const parsed = normalizeLoadedState(JSON.parse(saved));
+      if (hasMeaningfulData(parsed)) return parsed;
+      // 현재 키에 데이터가 비어있다면 구버전 키에 저장된 데이터가 있는지 점검하여 자동 복구·보존
+      for (const oldKey of LEGACY_STORAGE_KEYS) {
+        const oldRaw = localStorage.getItem(oldKey);
+        if (oldRaw) {
+          const oldParsed = normalizeLoadedState(JSON.parse(oldRaw));
+          if (hasMeaningfulData(oldParsed)) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(oldParsed));
+            return oldParsed;
+          }
+        }
       }
       return parsed;
+    }
+    // 신규 키가 없을 때 구버전 데이터 자동 마이그레이션
+    for (const oldKey of LEGACY_STORAGE_KEYS) {
+      const oldRaw = localStorage.getItem(oldKey);
+      if (oldRaw) {
+        const oldParsed = normalizeLoadedState(JSON.parse(oldRaw));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(oldParsed));
+        return oldParsed;
+      }
     }
   } catch (e) {
     console.warn(e);
   }
   return JSON.parse(JSON.stringify(INITIAL_STATE));
+}
+
+function loadAuthCreds() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY) || sessionStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.userId && parsed.password) {
+      return {
+        userId: String(parsed.userId).trim().toLowerCase(),
+        password: String(parsed.password)
+      };
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+  return null;
+}
+
+function saveAuthCreds(creds) {
+  authCreds = creds;
+  try {
+    if (creds && creds.userId && creds.password) {
+      const str = JSON.stringify(creds);
+      localStorage.setItem(AUTH_STORAGE_KEY, str);
+      sessionStorage.setItem(AUTH_STORAGE_KEY, str);
+    } else {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+  updateAccountStatusUI();
+}
+
+function encodeAuthHeader(creds) {
+  if (!creds || !creds.userId || !creds.password) return '';
+  const jsonStr = JSON.stringify({ userId: creds.userId, password: creds.password });
+  const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+  return `Bearer ${b64}`;
+}
+
+function updateAccountStatusUI() {
+  const badge = document.getElementById('accountStatusBadge');
+  const promptBanner = document.getElementById('accountPromptBanner');
+  const logoutBtn = document.getElementById('btnAccountLogout');
+
+  if (authCreds && authCreds.userId) {
+    if (badge) {
+      badge.className = 'account-status-pill logged-in';
+      badge.textContent = `☁️ ${authCreds.userId} (동기화됨)`;
+    }
+    if (promptBanner) promptBanner.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+  } else {
+    if (badge) {
+      badge.className = 'account-status-pill';
+      badge.textContent = '🔐 계정 로그인·동기화';
+    }
+    if (promptBanner) promptBanner.style.display = 'flex';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+  }
+}
+
+function showCloudFetchError(msg) {
+  loadErrorState = true;
+  loadErrorMsg = msg || '네트워크 지연 또는 인증 오류로 인해 클라우드 저장 내역을 불러오지 못했습니다. 다시 시도해 주세요.';
+  const banner = document.getElementById('cloudFetchErrorBanner');
+  const msgEl = document.getElementById('cloudFetchErrorMsg');
+  if (msgEl) msgEl.textContent = loadErrorMsg;
+  if (banner) banner.style.display = 'flex';
+}
+
+function hideCloudFetchError() {
+  loadErrorState = false;
+  loadErrorMsg = '';
+  const banner = document.getElementById('cloudFetchErrorBanner');
+  if (banner) banner.style.display = 'none';
 }
 
 let toastTimer = null;
@@ -119,22 +295,191 @@ function showSaveToast(message) {
   }, 2600);
 }
 
-function updateSavedBadgeTimestamp() {
+function updateSavedBadgeTimestamp(prefix = '✅ 저장 완료') {
   const badge = document.getElementById('lastSavedBadge');
   if (!badge) return;
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   const ss = String(now.getSeconds()).padStart(2, '0');
-  badge.textContent = `✅ 저장 완료 (${hh}:${mm}:${ss})`;
+  badge.textContent = `${prefix} (${hh}:${mm}:${ss})`;
 }
 
-function saveState(toastMessage) {
+async function pushStateToCloud(action = 'save') {
+  if (!authCreds || !authCreds.userId || !authCreds.password) return false;
+  try {
+    const res = await fetch(`/api/state?t=${Date.now()}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': encodeAuthHeader(authCreds),
+        'Cache-Control': 'no-cache'
+      },
+      cache: 'no-store',
+      body: JSON.stringify({
+        action,
+        state
+      })
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.ok) {
+      const errMsg = (data && data.message) || '클라우드 저장소 동기화 중 오류가 발생했습니다.';
+      showCloudFetchError(errMsg);
+      return false;
+    }
+    hideCloudFetchError();
+    cloudRevision = Number(data.revision) || cloudRevision;
+    if (data.state && action === 'merge') {
+      state = normalizeLoadedState(data.state);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderAll();
+    }
+    updateSavedBadgeTimestamp('☁️ 클라우드 동기화');
+    return true;
+  } catch (err) {
+    console.warn('[pushStateToCloud]', err);
+    showCloudFetchError('네트워크 연결 문제로 서버에 저장하지 못했습니다. 기기 내부에는 안전하게 저장되었으며 [다시 시도]를 누르면 동기화됩니다.');
+    return false;
+  }
+}
+
+window.syncWithCloudNow = async function(isManual = false, mode = 'fetch') {
+  if (!authCreds || !authCreds.userId || !authCreds.password) {
+    if (isManual) {
+      window.openAccountModal();
+    }
+    return false;
+  }
+  if (isSyncingCloud) return false;
+  isSyncingCloud = true;
+
+  const syncBtn = document.getElementById('btnSyncNow');
+  if (syncBtn) syncBtn.textContent = '⏳ 동기화중...';
+
+  try {
+    // 로그인 직후이거나 병합 모드일 때는 기존 기기 데이터를 보존하며 서버와 병합(merge)
+    if (mode === 'merge') {
+      const ok = await pushStateToCloud('merge');
+      if (ok && isManual) {
+        showSaveToast(`☁️ [${authCreds.userId}] 계정의 PC·모바일 데이터가 안전하게 동기화되었습니다!`);
+      }
+      return ok;
+    }
+
+    const res = await fetch(`/api/state?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': encodeAuthHeader(authCreds),
+        'Cache-Control': 'no-cache'
+      },
+      cache: 'no-store'
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.ok) {
+      const errMsg = (data && data.message) || '저장된 데이터를 서버에서 불러오지 못했습니다.';
+      showCloudFetchError(errMsg);
+      renderAll();
+      return false;
+    }
+
+    hideCloudFetchError();
+
+    if (data.state && hasMeaningfulData(data.state)) {
+      // 로컬에도 데이터가 있고 서버에도 데이터가 있는 경우 유실 방지를 위해 합집합 병합 여부 점검
+      const cloudLoaded = normalizeLoadedState(data.state);
+      const localCount = (state.dailySales ? state.dailySales.length : 0) + (state.commonCosts ? state.commonCosts.length : 0);
+      const cloudCount = (cloudLoaded.dailySales ? cloudLoaded.dailySales.length : 0) + (cloudLoaded.commonCosts ? cloudLoaded.commonCosts.length : 0);
+
+      // 로컬에만 있는 신규 ID가 있으면 merge로 보존, 그렇지 않으면 서버 최신 상태 반영
+      const cloudSaleIds = new Set((cloudLoaded.dailySales || []).map(x => String(x.id)));
+      const cloudCommonIds = new Set((cloudLoaded.commonCosts || []).map(x => String(x.id)));
+      const hasLocalOnlyItems =
+        (state.dailySales || []).some(x => !cloudSaleIds.has(String(x.id))) ||
+        (state.commonCosts || []).some(x => !cloudCommonIds.has(String(x.id)));
+
+      if (hasLocalOnlyItems && localCount > 0 && cloudRevision === 0) {
+        await pushStateToCloud('merge');
+      } else {
+        state = cloudLoaded;
+        cloudRevision = Number(data.revision) || 0;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        ensureVisiblePeriodForLoadedData();
+      }
+    } else if (hasMeaningfulData(state)) {
+      // 서버 계정이 비어있고 현재 기기에 기존 저장 데이터가 있으면 서버로 즉시 업로드하여 보존
+      await pushStateToCloud('save');
+    }
+
+    updateSavedBadgeTimestamp('☁️ 동기화 완료');
+    renderAll();
+    if (isManual) {
+      showSaveToast(`☁️ [${authCreds.userId}] 계정의 최신 저장 내역을 불러왔습니다!`);
+    }
+    return true;
+  } catch (err) {
+    console.warn('[syncWithCloudNow]', err);
+    showCloudFetchError('네트워크 연결 오류로 인해 저장된 내역을 불러오지 못했습니다. 연결 상태를 확인한 뒤 [다시 시도]를 눌러 주세요.');
+    renderAll();
+    return false;
+  } finally {
+    isSyncingCloud = false;
+    if (syncBtn) syncBtn.textContent = '🔄 동기화';
+  }
+};
+
+window.retryCloudFetch = async function() {
+  if (!authCreds || !authCreds.userId) {
+    window.openAccountModal();
+    return;
+  }
+  const ok = await window.syncWithCloudNow(true, 'fetch');
+  if (!ok) {
+    showSaveToast('⚠️ 데이터를 다시 불러오지 못했습니다. 네트워크 또는 계정 정보를 확인해 주세요.');
+  }
+};
+
+window.openAccountModal = function() {
+  const modal = document.getElementById('accountLoginModal');
+  const idIn = document.getElementById('inAccountId');
+  const pwIn = document.getElementById('inAccountPw');
+  const errEl = document.getElementById('accountModalError');
+  if (errEl) errEl.style.display = 'none';
+  if (authCreds && authCreds.userId) {
+    if (idIn) idIn.value = authCreds.userId;
+    if (pwIn) pwIn.value = authCreds.password || '';
+  }
+  updateAccountStatusUI();
+  if (modal) {
+    modal.style.display = 'flex';
+    setTimeout(() => {
+      if (idIn && !idIn.value) idIn.focus();
+      else if (pwIn) pwIn.focus();
+    }, 50);
+  }
+};
+
+window.closeAccountModal = function() {
+  const modal = document.getElementById('accountLoginModal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.logoutCloudAccount = function() {
+  saveAuthCreds(null);
+  hideCloudFetchError();
+  window.closeAccountModal();
+  showSaveToast('🔓 계정 연결이 해제되었습니다. 이 기기에 저장된 데이터는 그대로 유지됩니다.');
+  renderAll();
+};
+
+function saveState(toastMessage, syncMode = 'save') {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     updateSavedBadgeTimestamp();
     if (toastMessage) {
       showSaveToast(toastMessage);
+    }
+    if (authCreds && authCreds.userId && syncMode !== 'localOnly') {
+      pushStateToCloud(syncMode === 'merge' ? 'merge' : 'save');
     }
   } catch (e) {
     console.warn(e);
@@ -187,17 +532,98 @@ function formatKoreanDateWithDay(yyyyMmDd) {
   return { text, dayChar, cls };
 }
 
+// 저장된 데이터의 날짜가 현재 선택된 단일 월(예: 2026-11) 밖에만 존재할 경우 전체 기간('all')으로 자동 전환해 조회 누락 방지
+function ensureVisiblePeriodForLoadedData() {
+  const modeEl = document.getElementById('filterMode');
+  const ymEl = document.getElementById('filterYm');
+  if (!modeEl || !ymEl) return;
+  if (modeEl.value !== 'month') return;
+
+  const allDates = [
+    ...(state.dailySales || []).map(r => r.date),
+    ...(state.commonCosts || []).map(c => c.date)
+  ].filter(Boolean);
+  if (allDates.length === 0) return;
+
+  const { start, end } = getActivePeriod();
+  const hasAnyInCurrentPeriod = allDates.some(d => d >= start && d <= end);
+  if (!hasAnyInCurrentPeriod) {
+    setPeriodFilterYm('all');
+  }
+}
+
+function setPeriodFilterYm(ymVal) {
+  const modeEl = document.getElementById('filterMode');
+  const ymGroup = document.getElementById('yearMonthGroup');
+  const customGroup = document.getElementById('customDateGroup');
+  if (modeEl) modeEl.value = 'month';
+  if (ymGroup) ymGroup.style.display = 'block';
+  if (customGroup) customGroup.style.display = 'none';
+
+  document.querySelectorAll('.sync-period-ym').forEach(sel => {
+    if (Array.from(sel.options).some(opt => opt.value === ymVal)) {
+      sel.value = ymVal;
+    }
+  });
+}
+
+function syncPeriodDropdownOptions() {
+  const baseEl = document.getElementById('filterYm');
+  if (!baseEl) return;
+
+  // 입력된 데이터 중 기본 옵션에 없는 연월이 있으면 자동 추가
+  const extraYms = new Set();
+  [...(state.dailySales || []), ...(state.commonCosts || [])].forEach(item => {
+    if (item && item.date && item.date.length >= 7) {
+      const ym = item.date.slice(0, 7);
+      const existsInTarget = state.targetMonths.some(t => t.ym === ym);
+      if (!existsInTarget) extraYms.add(ym);
+    }
+  });
+
+  const currentVal = baseEl.value || '2026-11';
+  const staticOptions = [
+    { value: 'all', label: '전체 기간 (모든 입력 내역)' },
+    { value: 'year-2026', label: '2026년 전체 (연도별 조회)' },
+    { value: 'year-2027', label: '2027년 전체 (연도별 조회)' },
+    ...state.targetMonths.map(t => ({ value: t.ym, label: t.label })),
+    ...Array.from(extraYms).sort().map(ym => {
+      const [y, m] = ym.split('-');
+      return { value: ym, label: `${String(y).slice(2)}년 ${Number(m)}월` };
+    })
+  ];
+
+  const optionsHtml = staticOptions
+    .map(o => `<option value="${escapeHtmlAttr(o.value)}">${escapeHtmlAttr(o.label)}</option>`)
+    .join('');
+
+  document.querySelectorAll('.sync-period-ym').forEach(sel => {
+    sel.innerHTML = optionsHtml;
+    sel.value = staticOptions.some(o => o.value === currentVal) ? currentVal : 'all';
+  });
+}
+
 // 현재 적용된 조회 시작일 ~ 종료일 계산
 function getActivePeriod() {
-  const mode = document.getElementById('filterMode').value;
+  const modeEl = document.getElementById('filterMode');
+  const mode = modeEl ? modeEl.value : 'month';
   if (mode === 'custom') {
     const s = document.getElementById('filterStartDate').value || '2026-11-01';
     const e = document.getElementById('filterEndDate').value || '2027-10-31';
     return { start: s, end: e };
   } else {
-    const ymVal = document.getElementById('filterYm').value;
+    const ymEl = document.getElementById('filterYm');
+    const ymVal = ymEl ? ymEl.value : '2026-11';
     if (ymVal === 'all') {
-      return { start: '2026-11-01', end: '2027-10-31' };
+      let minD = '2026-11-01';
+      let maxD = '2027-10-31';
+      [...(state.dailySales || []), ...(state.commonCosts || [])].forEach(item => {
+        if (item && item.date) {
+          if (item.date < minD) minD = item.date;
+          if (item.date > maxD) maxD = item.date;
+        }
+      });
+      return { start: minD, end: maxD };
     }
     if (ymVal === 'year-2026') {
       return { start: '2026-01-01', end: '2026-12-31' };
@@ -208,6 +634,14 @@ function getActivePeriod() {
     const found = state.targetMonths.find(t => t.ym === ymVal);
     if (found) {
       return { start: found.start, end: found.end };
+    }
+    if (/^\d{4}-\d{2}$/.test(ymVal)) {
+      const [y, m] = ymVal.split('-').map(Number);
+      const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      return {
+        start: `${ymVal}-01`,
+        end: `${ymVal}-${String(lastDay).padStart(2, '0')}`
+      };
     }
     return { start: '2026-11-01', end: '2026-11-30' };
   }
@@ -290,6 +724,9 @@ function calcProRatedTargetForMonth(tm, periodStart, periodEnd) {
 
 // 전체 화면 렌더링
 function renderAll() {
+  syncPeriodDropdownOptions();
+  updateAccountStatusUI();
+
   const { start, end } = getActivePeriod();
   const d1 = new Date(start + 'T00:00:00Z');
   const d2 = new Date(end + 'T00:00:00Z');
@@ -761,7 +1198,26 @@ function renderDailySalesTable(evaluatedSales, start, end) {
   if (rows.length === 0) {
     const emptyTr = document.createElement('tr');
     emptyTr.className = 'empty-table-row';
-    emptyTr.innerHTML = `<td colspan="18" class="empty-row-cell" style="text-align:center; padding:24px; color:#64748b;">등록된 일일 매출 내역이 없습니다. 상단 입력 칸에서 새로운 매출·주문 내역을 추가해 주세요.</td>`;
+    if (loadErrorState) {
+      emptyTr.innerHTML = `
+        <td colspan="18" class="empty-row-cell" style="text-align:center; padding:22px;">
+          <div class="fetch-error-inline">
+            <strong>⚠️ 저장된 데이터를 불러오지 못했습니다.</strong>
+            <span>${escapeHtmlAttr(loadErrorMsg || '네트워크 또는 계정 동기화 오류로 인해 데이터를 조회하지 못했습니다.')}</span>
+            <button type="button" class="btn btn-primary btn-sm" onclick="retryCloudFetch()">🔄 다시 시도</button>
+          </div>
+        </td>
+      `;
+    } else if (onlyPeriod && evaluatedSales.length > 0) {
+      emptyTr.innerHTML = `
+        <td colspan="18" class="empty-row-cell" style="text-align:center; padding:22px; color:#334155;">
+          현재 선택된 조회 기간(${start} ~ ${end})에는 일일 매출 내역이 없습니다. (전체 저장 내역: <strong>${evaluatedSales.length}건</strong>)<br/>
+          <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="document.getElementById('chkFilterDailyByPeriod').checked=false; setPeriodFilterYm('all'); renderAll();">📋 저장된 전체 매출 내역 모두 보기</button>
+        </td>
+      `;
+    } else {
+      emptyTr.innerHTML = `<td colspan="18" class="empty-row-cell" style="text-align:center; padding:24px; color:#64748b;">등록된 일일 매출 내역이 없습니다. 상단 입력 칸에서 새로운 매출·주문 내역을 추가해 주세요.</td>`;
+    }
     tbody.appendChild(emptyTr);
   }
 
@@ -1169,7 +1625,26 @@ function renderTargetsAndCommonTab(start, end, totalAnnualTarget, periodTarget, 
   if (visibleCommonRows.length === 0) {
     const emptyTr = document.createElement('tr');
     emptyTr.className = 'empty-table-row';
-    emptyTr.innerHTML = `<td colspan="8" class="empty-row-cell" style="text-align:center; padding:24px; color:#64748b;">등록된 공통비용 내역이 없습니다. 상단 입력 칸에서 [발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고]를 입력해 추가해 주세요.</td>`;
+    if (loadErrorState) {
+      emptyTr.innerHTML = `
+        <td colspan="8" class="empty-row-cell" style="text-align:center; padding:22px;">
+          <div class="fetch-error-inline">
+            <strong>⚠️ 저장된 데이터를 불러오지 못했습니다.</strong>
+            <span>${escapeHtmlAttr(loadErrorMsg || '네트워크 또는 계정 동기화 오류로 인해 데이터를 조회하지 못했습니다.')}</span>
+            <button type="button" class="btn btn-primary btn-sm" onclick="retryCloudFetch()">🔄 다시 시도</button>
+          </div>
+        </td>
+      `;
+    } else if (onlyPeriodCommon && state.commonCosts.length > 0) {
+      emptyTr.innerHTML = `
+        <td colspan="8" class="empty-row-cell" style="text-align:center; padding:22px; color:#334155;">
+          현재 선택된 조회 기간(${start} ~ ${end})에는 공통비용 내역이 없습니다. (전체 저장 내역: <strong>${state.commonCosts.length}건</strong>)<br/>
+          <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="document.getElementById('chkFilterCommonByPeriod').checked=false; setPeriodFilterYm('all'); renderAll();">📋 저장된 전체 공통비용 내역 모두 보기</button>
+        </td>
+      `;
+    } else {
+      emptyTr.innerHTML = `<td colspan="8" class="empty-row-cell" style="text-align:center; padding:24px; color:#64748b;">등록된 공통비용 내역이 없습니다. 상단 입력 칸에서 [발생일자 · 비용 항목 · 상세 내역 · 금액 · 비고]를 입력해 추가해 주세요.</td>`;
+    }
     cTbody.appendChild(emptyTr);
   }
 
@@ -1510,17 +1985,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 탭 전환 및 상단 부제목 업데이트
+  // 계정 로그인 · 클라우드 동기화 폼 제출 연결
+  const accountLoginForm = document.getElementById('accountLoginForm');
+  if (accountLoginForm) {
+    accountLoginForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const idIn = document.getElementById('inAccountId');
+      const pwIn = document.getElementById('inAccountPw');
+      const errEl = document.getElementById('accountModalError');
+      const submitBtn = document.getElementById('btnAccountSubmit');
+      const userId = (idIn ? idIn.value : '').trim().toLowerCase();
+      const password = pwIn ? pwIn.value : '';
+
+      if (userId.length < 2 || password.length < 4) {
+        if (errEl) {
+          errEl.textContent = '⚠️ 아이디는 2자 이상, 비밀번호는 4자 이상 입력해 주세요.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+
+      if (errEl) errEl.style.display = 'none';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ 로그인 및 데이터 동기화 중...';
+      }
+
+      const prevCreds = authCreds;
+      saveAuthCreds({ userId, password });
+
+      const ok = await window.syncWithCloudNow(true, 'merge');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '☁️ 로그인 및 기존 데이터 보존·동기화 시작';
+      }
+
+      if (!ok) {
+        saveAuthCreds(prevCreds);
+        if (errEl) {
+          errEl.textContent = loadErrorMsg || '⚠️ 로그인 또는 동기화에 실패했습니다. 아이디·비밀번호를 확인해 주세요.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+
+      window.closeAccountModal();
+      renderAll();
+    });
+  }
+
+  // 탭 전환 및 상단 부제목 업데이트 + 스크롤 최상단 초기화
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      // 모바일에서 인라인 수정 중 탭을 누른 경우 즉시 blur하여 저장 누락 방지
+      if (document.activeElement && typeof document.activeElement.blur === 'function' && document.activeElement !== btn) {
+        document.activeElement.blur();
+      }
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById(btn.dataset.tab).classList.add('active');
+      const panel = document.getElementById(btn.dataset.tab);
+      if (panel) panel.classList.add('active');
       if (btn.dataset.subtitle) {
         document.getElementById('currentSheetSubtitle').textContent = btn.dataset.subtitle;
       }
+      if (typeof btn.scrollIntoView === 'function') {
+        try {
+          btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        } catch (err) {}
+      }
       renderAll();
+      // 메뉴 전환 시 이전 스크롤 위치 때문에 내용이 가려지지 않도록 해당 메뉴의 시작 부분(최상단) 표시
+      try {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      } catch (err) {
+        window.scrollTo(0, 0);
+      }
     });
   });
 
@@ -1532,7 +2072,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAll();
   });
 
-  ['filterYm', 'filterStartDate', 'filterEndDate', 'chkFilterDailyByPeriod', 'chkFilterCommonByPeriod', 'analysisSortBy', 'analysisAllocRule'].forEach(id => {
+  // 각 메뉴에 배치된 조회기간 선택 드롭다운(.sync-period-ym) 동기화
+  document.querySelectorAll('.sync-period-ym').forEach(sel => {
+    sel.addEventListener('change', e => {
+      const val = e.target.value;
+      setPeriodFilterYm(val);
+      renderAll();
+    });
+  });
+
+  ['filterStartDate', 'filterEndDate', 'chkFilterDailyByPeriod', 'chkFilterCommonByPeriod', 'analysisSortBy', 'analysisAllocRule'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', renderAll);
   });
@@ -1569,9 +2118,10 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('10kg 미만 및 10kg 이상 주문건수는 0 이상의 정수만 입력할 수 있습니다.');
       return;
     }
+    const saleDate = document.getElementById('inSaleDate').value;
     state.dailySales.push({
-      id: Date.now(),
-      date: document.getElementById('inSaleDate').value,
+      id: Date.now() + Math.floor(Math.random() * 10000),
+      date: saleDate,
       channel: document.getElementById('inSaleChannel').value,
       ordersUnder10: u10,
       ordersOver10: o10,
@@ -1579,6 +2129,12 @@ document.addEventListener('DOMContentLoaded', () => {
       extraCost: Number(document.getElementById('inSaleExtra').value) || 0,
       note: document.getElementById('inSaleNote').value
     });
+    // 입력한 매출일자가 현재 선택된 조회 기간 밖이면 대시보드/분석에서도 즉시 조회되도록 기간을 자동 확장
+    const { start, end } = getActivePeriod();
+    if (saleDate && (saleDate < start || saleDate > end)) {
+      syncPeriodDropdownOptions();
+      setPeriodFilterYm('all');
+    }
     saveState('➕ 새로운 일일 매출·주문 내역이 추가 및 저장되었습니다!');
     renderAll();
     document.getElementById('inSaleNote').value = '';
@@ -1588,7 +2144,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('addChannelRateForm').addEventListener('submit', e => {
     e.preventDefault();
     state.channelRates.push({
-      id: Date.now(),
+      id: Date.now() + Math.floor(Math.random() * 10000),
       channel: document.getElementById('inRateChannel').value,
       start: document.getElementById('inRateStart').value,
       end: document.getElementById('inRateEnd').value || '',
@@ -1630,6 +2186,11 @@ document.addEventListener('DOMContentLoaded', () => {
       amount: amtVal,
       note: noteVal
     });
+    const { start, end } = getActivePeriod();
+    if (dateVal && (dateVal < start || dateVal > end)) {
+      syncPeriodDropdownOptions();
+      setPeriodFilterYm('all');
+    }
     saveState('➕ 새로운 공통비용 내역이 추가 및 저장되었습니다!');
     if (detailEl) detailEl.value = '';
     document.getElementById('inCommonAmt').value = '';
@@ -1649,6 +2210,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inNewChannelName').value = '';
   });
 
+  // 모바일 화면 복귀 또는 네트워크 재연결 시 최신 클라우드 상태 자동 동기화
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && authCreds && authCreds.userId) {
+      window.syncWithCloudNow(false, 'fetch');
+    }
+  });
+  window.addEventListener('online', () => {
+    if (authCreds && authCreds.userId) {
+      window.syncWithCloudNow(false, 'fetch');
+    }
+  });
+
   // 화면 너비 변경 시 차트 및 레이아웃 반응형 갱신
   let lastViewportWidth = window.innerWidth;
   let resizeTimer = null;
@@ -1661,5 +2234,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 120);
   });
 
+  ensureVisiblePeriodForLoadedData();
   renderAll();
+
+  // 로그인된 계정이 있으면 접속 직후 클라우드 저장 내역 자동 조회·동기화
+  if (authCreds && authCreds.userId) {
+    window.syncWithCloudNow(false, 'fetch');
+  }
 });
