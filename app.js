@@ -49,11 +49,17 @@ const LEGACY_STORAGE_KEYS = [
   'sales_profit_manager_state_v1'
 ];
 const AUTH_STORAGE_KEY = 'sales_profit_manager_auth_v1';
+const DEFAULT_CLOUD_CREDS = {
+  userId: 'shared_workspace_v1',
+  password: 'shared_workspace_pw_v1',
+  isDefault: true
+};
 
 let loadErrorState = false;
 let loadErrorMsg = '';
 let isSyncingCloud = false;
 let cloudRevision = 0;
+let lastLocalModifyTs = 0;
 let authCreds = loadAuthCreds();
 let state = loadState();
 let charts = {};
@@ -205,25 +211,35 @@ function loadState() {
 function loadAuthCreds() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY) || sessionStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.userId && parsed.password) {
-      return {
-        userId: String(parsed.userId).trim().toLowerCase(),
-        password: String(parsed.password)
-      };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.userId && parsed.password) {
+        return {
+          userId: String(parsed.userId).trim().toLowerCase(),
+          password: String(parsed.password),
+          isDefault: Boolean(parsed.isDefault)
+        };
+      }
     }
   } catch (e) {
     console.warn(e);
   }
-  return null;
+  return { ...DEFAULT_CLOUD_CREDS };
 }
 
 function saveAuthCreds(creds) {
-  authCreds = creds;
+  if (creds && creds.userId && creds.password) {
+    authCreds = {
+      userId: String(creds.userId).trim().toLowerCase(),
+      password: String(creds.password),
+      isDefault: Boolean(creds.isDefault)
+    };
+  } else {
+    authCreds = { ...DEFAULT_CLOUD_CREDS };
+  }
   try {
-    if (creds && creds.userId && creds.password) {
-      const str = JSON.stringify(creds);
+    if (!authCreds.isDefault) {
+      const str = JSON.stringify(authCreds);
       localStorage.setItem(AUTH_STORAGE_KEY, str);
       sessionStorage.setItem(AUTH_STORAGE_KEY, str);
     } else {
@@ -237,8 +253,8 @@ function saveAuthCreds(creds) {
 }
 
 function encodeAuthHeader(creds) {
-  if (!creds || !creds.userId || !creds.password) return '';
-  const jsonStr = JSON.stringify({ userId: creds.userId, password: creds.password });
+  const activeCreds = (creds && creds.userId && creds.password) ? creds : DEFAULT_CLOUD_CREDS;
+  const jsonStr = JSON.stringify({ userId: activeCreds.userId, password: activeCreds.password });
   const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
   return `Bearer ${b64}`;
 }
@@ -248,7 +264,7 @@ function updateAccountStatusUI() {
   const promptBanner = document.getElementById('accountPromptBanner');
   const logoutBtn = document.getElementById('btnAccountLogout');
 
-  if (authCreds && authCreds.userId) {
+  if (authCreds && authCreds.userId && !authCreds.isDefault) {
     if (badge) {
       badge.className = 'account-status-pill logged-in';
       badge.textContent = `☁️ ${authCreds.userId} (동기화됨)`;
@@ -257,10 +273,10 @@ function updateAccountStatusUI() {
     if (logoutBtn) logoutBtn.style.display = 'inline-flex';
   } else {
     if (badge) {
-      badge.className = 'account-status-pill';
-      badge.textContent = '🔐 계정 로그인·동기화';
+      badge.className = 'account-status-pill logged-in';
+      badge.textContent = '☁️ PC·모바일 자동동기화 켜짐';
     }
-    if (promptBanner) promptBanner.style.display = 'flex';
+    if (promptBanner) promptBanner.style.display = 'none';
     if (logoutBtn) logoutBtn.style.display = 'none';
   }
 }
@@ -343,25 +359,56 @@ async function pushStateToCloud(action = 'save') {
   }
 }
 
+function hasLocalUnpushedDifference(cloudLoaded, localSt) {
+  if (!cloudLoaded || !localSt) return false;
+  const cloudSaleIds = new Set((cloudLoaded.dailySales || []).map(x => String(x.id)));
+  const cloudCommonIds = new Set((cloudLoaded.commonCosts || []).map(x => String(x.id)));
+
+  if ((localSt.dailySales || []).some(x => !cloudSaleIds.has(String(x.id)))) return true;
+  if ((localSt.commonCosts || []).some(x => !cloudCommonIds.has(String(x.id)))) return true;
+
+  // 목표매출 중 로컬에만 설정된 값이 있는지 점검
+  for (const lTm of (localSt.targetMonths || [])) {
+    const lTarget = Number(lTm.target) || 0;
+    if (lTarget > 0) {
+      const cTm = (cloudLoaded.targetMonths || []).find(x => x.ym === lTm.ym);
+      if (!cTm || (Number(cTm.target) || 0) === 0) return true;
+    }
+  }
+
+  // 채널 비용 설정 중 로컬에만 설정된 단가가 있는지 점검
+  const isRateCfg = r => r && ((Number(r.feeRate) || 0) > 0 || (Number(r.shipUnder10) || 0) > 0 || (Number(r.shipOver10) || 0) > 0 || (Number(r.boxCost) || 0) > 0 || (Number(r.vinylCost) || 0) > 0 || (Number(r.leafletCost) || 0) > 0 || Boolean((r.end || '').trim()) || Boolean((r.note || '').trim()));
+  for (const lRate of (localSt.channelRates || [])) {
+    if (isRateCfg(lRate)) {
+      const cRate = (cloudLoaded.channelRates || []).find(x => x.id === lRate.id || (x.channel === lRate.channel && x.start === lRate.start));
+      if (!cRate || !isRateCfg(cRate)) return true;
+    }
+  }
+
+  return false;
+}
+
 window.syncWithCloudNow = async function(isManual = false, mode = 'fetch') {
   if (!authCreds || !authCreds.userId || !authCreds.password) {
-    if (isManual) {
-      window.openAccountModal();
-    }
-    return false;
+    authCreds = { ...DEFAULT_CLOUD_CREDS };
   }
   if (isSyncingCloud) return false;
+  // 사용자가 방금 입력·수정 중일 때(2.5초 이내) 자동 백그라운드 폴링이 로컬 상태를 덮어쓰지 않도록 보호
+  if (!isManual && mode === 'fetch' && (Date.now() - lastLocalModifyTs < 2500)) {
+    return false;
+  }
   isSyncingCloud = true;
 
   const syncBtn = document.getElementById('btnSyncNow');
-  if (syncBtn) syncBtn.textContent = '⏳ 동기화중...';
+  if (syncBtn && isManual) syncBtn.textContent = '⏳ 동기화중...';
 
   try {
     // 로그인 직후이거나 병합 모드일 때는 기존 기기 데이터를 보존하며 서버와 병합(merge)
     if (mode === 'merge') {
       const ok = await pushStateToCloud('merge');
       if (ok && isManual) {
-        showSaveToast(`☁️ [${authCreds.userId}] 계정의 PC·모바일 데이터가 안전하게 동기화되었습니다!`);
+        const label = authCreds.isDefault ? '기본 공용 저장소' : `[${authCreds.userId}] 계정`;
+        showSaveToast(`☁️ ${label}의 PC·모바일 데이터가 안전하게 통합·동기화되었습니다!`);
       }
       return ok;
     }
@@ -384,42 +431,43 @@ window.syncWithCloudNow = async function(isManual = false, mode = 'fetch') {
 
     hideCloudFetchError();
 
+    const incomingRev = Number(data.revision) || 0;
     if (data.state && hasMeaningfulData(data.state)) {
-      // 로컬에도 데이터가 있고 서버에도 데이터가 있는 경우 유실 방지를 위해 합집합 병합 여부 점검
       const cloudLoaded = normalizeLoadedState(data.state);
-      const localCount = (state.dailySales ? state.dailySales.length : 0) + (state.commonCosts ? state.commonCosts.length : 0);
-      const cloudCount = (cloudLoaded.dailySales ? cloudLoaded.dailySales.length : 0) + (cloudLoaded.commonCosts ? cloudLoaded.commonCosts.length : 0);
 
-      // 로컬에만 있는 신규 ID가 있으면 merge로 보존, 그렇지 않으면 서버 최신 상태 반영
-      const cloudSaleIds = new Set((cloudLoaded.dailySales || []).map(x => String(x.id)));
-      const cloudCommonIds = new Set((cloudLoaded.commonCosts || []).map(x => String(x.id)));
-      const hasLocalOnlyItems =
-        (state.dailySales || []).some(x => !cloudSaleIds.has(String(x.id))) ||
-        (state.commonCosts || []).some(x => !cloudCommonIds.has(String(x.id)));
-
-      if (hasLocalOnlyItems && localCount > 0 && cloudRevision === 0) {
+      // 첫 동기화(cloudRevision === 0) 시 이 기기에만 있던 기존 데이터(매출·공통비용·목표매출·채널비용)가 있으면 유실 없이 서버와 병합(merge)
+      if (cloudRevision === 0 && hasMeaningfulData(state) && hasLocalUnpushedDifference(cloudLoaded, state)) {
         await pushStateToCloud('merge');
       } else {
-        state = cloudLoaded;
-        cloudRevision = Number(data.revision) || 0;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        ensureVisiblePeriodForLoadedData();
+        const prevJson = JSON.stringify(state);
+        const nextJson = JSON.stringify(cloudLoaded);
+        cloudRevision = incomingRev;
+        if (prevJson !== nextJson) {
+          state = cloudLoaded;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          ensureVisiblePeriodForLoadedData();
+          renderAll();
+        }
       }
     } else if (hasMeaningfulData(state)) {
       // 서버 계정이 비어있고 현재 기기에 기존 저장 데이터가 있으면 서버로 즉시 업로드하여 보존
-      await pushStateToCloud('save');
+      await pushStateToCloud('merge');
+    } else {
+      cloudRevision = incomingRev;
     }
 
     updateSavedBadgeTimestamp('☁️ 동기화 완료');
-    renderAll();
     if (isManual) {
-      showSaveToast(`☁️ [${authCreds.userId}] 계정의 최신 저장 내역을 불러왔습니다!`);
+      renderAll();
+      showSaveToast('☁️ PC · 모바일 최신 저장 내역이 동기화되었습니다!');
     }
     return true;
   } catch (err) {
     console.warn('[syncWithCloudNow]', err);
-    showCloudFetchError('네트워크 연결 오류로 인해 저장된 내역을 불러오지 못했습니다. 연결 상태를 확인한 뒤 [다시 시도]를 눌러 주세요.');
-    renderAll();
+    if (isManual) {
+      showCloudFetchError('네트워크 연결 오류로 인해 저장된 내역을 불러오지 못했습니다. 연결 상태를 확인한 뒤 [다시 시도]를 눌러 주세요.');
+      renderAll();
+    }
     return false;
   } finally {
     isSyncingCloud = false;
@@ -444,9 +492,12 @@ window.openAccountModal = function() {
   const pwIn = document.getElementById('inAccountPw');
   const errEl = document.getElementById('accountModalError');
   if (errEl) errEl.style.display = 'none';
-  if (authCreds && authCreds.userId) {
+  if (authCreds && authCreds.userId && !authCreds.isDefault) {
     if (idIn) idIn.value = authCreds.userId;
     if (pwIn) pwIn.value = authCreds.password || '';
+  } else {
+    if (idIn) idIn.value = '';
+    if (pwIn) pwIn.value = '';
   }
   updateAccountStatusUI();
   if (modal) {
@@ -463,16 +514,19 @@ window.closeAccountModal = function() {
   if (modal) modal.style.display = 'none';
 };
 
-window.logoutCloudAccount = function() {
+window.logoutCloudAccount = async function() {
   saveAuthCreds(null);
+  cloudRevision = 0;
   hideCloudFetchError();
   window.closeAccountModal();
-  showSaveToast('🔓 계정 연결이 해제되었습니다. 이 기기에 저장된 데이터는 그대로 유지됩니다.');
+  await window.syncWithCloudNow(false, 'merge');
+  showSaveToast('☁️ 기본 자동동기화 모드로 전환되었습니다. PC와 모바일이 즉시 자동 연동됩니다.');
   renderAll();
 };
 
 function saveState(toastMessage, syncMode = 'save') {
   try {
+    lastLocalModifyTs = Date.now();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     updateSavedBadgeTimestamp();
     if (toastMessage) {
@@ -2012,7 +2066,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const prevCreds = authCreds;
-      saveAuthCreds({ userId, password });
+      cloudRevision = 0;
+      saveAuthCreds({ userId, password, isDefault: false });
 
       const ok = await window.syncWithCloudNow(true, 'merge');
       if (submitBtn) {
@@ -2210,9 +2265,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inNewChannelName').value = '';
   });
 
-  // 모바일 화면 복귀 또는 네트워크 재연결 시 최신 클라우드 상태 자동 동기화
+  // 모바일 화면 복귀, 창 포커스, 또는 네트워크 재연결 시 최신 클라우드 상태 자동 동기화
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && authCreds && authCreds.userId) {
+      window.syncWithCloudNow(false, 'fetch');
+    }
+  });
+  window.addEventListener('focus', () => {
+    if (authCreds && authCreds.userId) {
       window.syncWithCloudNow(false, 'fetch');
     }
   });
@@ -2221,6 +2281,16 @@ document.addEventListener('DOMContentLoaded', () => {
       window.syncWithCloudNow(false, 'fetch');
     }
   });
+
+  // PC와 모바일을 동시에 켜두고 사용할 때도 새로고침 없이 자동 반영되도록 주기적 백그라운드 동기화 (6초 간격, 입력창 수정 중일 때는 건너뜀)
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    const activeTag = document.activeElement ? document.activeElement.tagName : '';
+    if (activeTag === 'INPUT' || activeTag === 'SELECT' || activeTag === 'TEXTAREA') return;
+    if (authCreds && authCreds.userId) {
+      window.syncWithCloudNow(false, 'fetch');
+    }
+  }, 6000);
 
   // 화면 너비 변경 시 차트 및 레이아웃 반응형 갱신
   let lastViewportWidth = window.innerWidth;
@@ -2237,7 +2307,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ensureVisiblePeriodForLoadedData();
   renderAll();
 
-  // 로그인된 계정이 있으면 접속 직후 클라우드 저장 내역 자동 조회·동기화
+  // 접속 직후 클라우드 저장 내역 자동 조회·통합 동기화 (PC·모바일 기존 저장 내역 모두 보존)
   if (authCreds && authCreds.userId) {
     window.syncWithCloudNow(false, 'fetch');
   }

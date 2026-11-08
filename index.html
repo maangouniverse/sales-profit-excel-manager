@@ -17,7 +17,7 @@
       </div>
       <div class="header-actions">
         <div id="accountSyncBar" class="account-sync-bar">
-          <span id="accountStatusBadge" class="account-status-pill" onclick="openAccountModal()" title="PC와 모바일에서 같은 계정으로 로그인하면 저장 내역이 자동 동기화됩니다">🔐 계정 로그인·동기화</span>
+          <span id="accountStatusBadge" class="account-status-pill logged-in" onclick="openAccountModal()" title="PC와 모바일의 저장 내역이 클라우드를 통해 자동으로 동기화됩니다">☁️ PC·모바일 자동동기화 켜짐</span>
           <button type="button" id="btnSyncNow" class="btn btn-sync-sm" onclick="syncWithCloudNow(true)" title="서버의 최신 저장 내역을 즉시 불러오거나 동기화합니다">🔄 동기화</button>
         </div>
         <span id="lastSavedBadge" class="save-status-badge">✅ 자동저장 활성화됨</span>
@@ -54,13 +54,13 @@
       </div>
     </div>
 
-    <!-- 미로그인 상태 안내 배너 (로그인 완료 시 자동 숨김) -->
-    <div id="accountPromptBanner" class="account-prompt-banner">
+    <!-- 미로그인 상태 안내 배너 (자동동기화 기본 활성화로 숨김 처리) -->
+    <div id="accountPromptBanner" class="account-prompt-banner" style="display:none;">
       <div class="account-prompt-text">
         <strong>☁️ PC · 모바일 기기 간 데이터 동기화 안내</strong>
-        <span>현재 이 기기 내부에만 저장 중입니다. <strong>같은 계정(아이디·비밀번호)</strong>으로 로그인하시면 기존 저장 데이터를 보존하면서 PC와 모바일에서 동일한 내역을 실시간으로 조회·저장할 수 있습니다.</span>
+        <span>PC와 모바일에서 저장한 내역이 클라우드를 통해 실시간으로 자동 연동됩니다.</span>
       </div>
-      <button type="button" class="btn btn-primary btn-sm" onclick="openAccountModal()">🔑 계정 로그인 · 동기화 설정</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="openAccountModal()">🔑 계정 동기화 설정</button>
     </div>
 
     <!-- ================================================================== -->
@@ -924,8 +924,8 @@
       </div>
       <div class="modal-body">
         <p class="modal-desc">
-          <strong>PC와 스마트폰(모바일)에서 같은 계정 아이디와 비밀번호로 로그인</strong>하시면, 비공개(Private) 보안 저장소를 통해 어디서나 동일한 매출·비용 내역을 조회하고 저장할 수 있습니다.<br/>
-          <small style="color:#0f683c; font-weight:600;">※ 처음 입력하시는 아이디·비밀번호면 새 계정으로 자동 등록되며, 이 기기에 이미 저장되어 있던 기존 데이터도 삭제되지 않고 그대로 계정에 안전하게 보존됩니다.</small>
+          <strong>현재 별도 로그인 없이도 PC와 스마트폰(모바일)의 모든 저장 내역이 클라우드를 통해 자동으로 통합·동기화</strong>되고 있습니다.<br/>
+          <small style="color:#0f683c; font-weight:600;">※ 개인 전용 아이디·비밀번호로 별도 분리하여 관리하고 싶으신 경우에만 아래에 입력해 주세요. 이미 PC나 핸드폰에 저장되어 있던 기존 데이터는 삭제되지 않고 안전하게 합쳐집니다.</small>
         </p>
         <form id="accountLoginForm" class="modal-form">
           <div class="form-field">

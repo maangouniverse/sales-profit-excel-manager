@@ -171,17 +171,16 @@ function mergeStates(cloudRaw, localRaw) {
     const lVal = lTm ? Number(lTm.target) || 0 : 0;
     return {
       ...def,
-      target: cVal > 0 ? cVal : lVal
+      target: lVal > 0 ? lVal : cVal
     };
   });
 
-  // channelRates 병합: 설정된 단가가 있는 항목 우선 보존 + 신규 추가 행 합집합
+  // channelRates 병합: 수정된 단가 또는 신규 추가 행 보존 (수정한 측이 우선 반영되도록 local 우선 비교)
   const rateMap = new Map();
   cloud.channelRates.forEach(r => {
     rateMap.set(`${r.channel}|${r.start}|${r.id}`, { ...r });
   });
   local.channelRates.forEach(lRate => {
-    // 동일 id 또는 동일 채널+시작일의 기본 행이 있는지 확인
     let matchedKey = null;
     for (const [k, cRate] of rateMap.entries()) {
       if (cRate.id === lRate.id || (cRate.channel === lRate.channel && cRate.start === lRate.start && (cRate.end || '') === (lRate.end || ''))) {
@@ -191,7 +190,9 @@ function mergeStates(cloudRaw, localRaw) {
     }
     if (matchedKey) {
       const existing = rateMap.get(matchedKey);
-      if (!isRateConfigured(existing) && isRateConfigured(lRate)) {
+      if (isRateConfigured(lRate)) {
+        rateMap.set(matchedKey, { ...lRate });
+      } else if (!isRateConfigured(existing) && !isRateConfigured(lRate)) {
         rateMap.set(matchedKey, { ...lRate });
       }
     } else if (isRateConfigured(lRate)) {
@@ -200,24 +201,43 @@ function mergeStates(cloudRaw, localRaw) {
   });
   const channelRates = Array.from(rateMap.values());
 
-  // dailySales 병합 (id 또는 date+channel+sales+ordersUnder10+ordersOver10 기준 중복 방지 합집합)
+  // dailySales 병합 (id 또는 date+channel+sales+ordersUnder10+ordersOver10 기준 중복 방지 합집합, 동일 ID는 최신 로컬 수정분 반영)
   const salesMap = new Map();
-  const makeSaleSig = s => `${s.id}::${s.date}::${s.channel}::${s.ordersUnder10}::${s.ordersOver10}::${s.sales}`;
-  cloud.dailySales.forEach(s => salesMap.set(String(s.id), { ...s, _sig: makeSaleSig(s) }));
+  const makeSaleSig = s => `${s.date}::${s.channel}::${s.ordersUnder10}::${s.ordersOver10}::${s.sales}::${s.extraCost}::${s.note}`;
+  const existingSaleSigs = new Set();
+  cloud.dailySales.forEach(s => {
+    const sig = makeSaleSig(s);
+    existingSaleSigs.add(sig);
+    salesMap.set(String(s.id), { ...s });
+  });
   local.dailySales.forEach(s => {
     const idKey = String(s.id);
-    if (!salesMap.has(idKey)) {
+    const sig = makeSaleSig(s);
+    if (salesMap.has(idKey)) {
+      salesMap.set(idKey, { ...s });
+    } else if (!existingSaleSigs.has(sig)) {
+      existingSaleSigs.add(sig);
       salesMap.set(idKey, { ...s });
     }
   });
-  const dailySales = Array.from(salesMap.values()).map(({ _sig, ...rest }) => rest);
+  const dailySales = Array.from(salesMap.values());
 
-  // commonCosts 병합 (id 기준 합집합)
+  // commonCosts 병합 (id 또는 date+category+detail+amount 기준 합집합, 동일 ID는 최신 로컬 수정분 반영)
   const commonMap = new Map();
-  cloud.commonCosts.forEach(c => commonMap.set(String(c.id), { ...c }));
+  const makeCommonSig = c => `${c.date}::${c.category}::${c.detail}::${c.amount}::${c.note}`;
+  const existingCommonSigs = new Set();
+  cloud.commonCosts.forEach(c => {
+    const sig = makeCommonSig(c);
+    existingCommonSigs.add(sig);
+    commonMap.set(String(c.id), { ...c });
+  });
   local.commonCosts.forEach(c => {
     const idKey = String(c.id);
-    if (!commonMap.has(idKey)) {
+    const sig = makeCommonSig(c);
+    if (commonMap.has(idKey)) {
+      commonMap.set(idKey, { ...c });
+    } else if (!existingCommonSigs.has(sig)) {
+      existingCommonSigs.add(sig);
       commonMap.set(idKey, { ...c });
     }
   });

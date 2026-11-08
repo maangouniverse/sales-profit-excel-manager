@@ -212,6 +212,43 @@ async function verifyCloudSyncApi() {
   assert.strictEqual(pcRefetchRes.data.state.dailySales[1].note, '모바일추가분');
   assert.strictEqual(pcRefetchRes.data.state.commonCosts[1].detail, '작업복 및 장갑 구입');
 
+  // 7-6. 별도 로그인 없이도 기본 자동동기화 계정(DEFAULT_CLOUD_CREDS)으로 PC 저장분과 모바일 저장분이 서로 덮어쓰지 않고 합쳐지는지 검증
+  assert(jsContent.includes('DEFAULT_CLOUD_CREDS') && jsContent.includes('hasLocalUnpushedDifference'), '별도 로그인 없이도 PC·모바일 자동동기화 및 기존 데이터 병합이 작동해야 합니다.');
+  const defaultAuth = { userId: 'shared_workspace_v1', password: 'shared_workspace_pw_v1' };
+  await callApi({
+    method: 'POST',
+    auth: defaultAuth,
+    body: {
+      action: 'merge',
+      state: {
+        channels: CHANNELS,
+        targetMonths: TARGET_MONTHS.map(t => t.ym === '2026-11' ? { ...t, target: 3000000 } : t),
+        channelRates: mockRates,
+        dailySales: [{ id: 501, date: '2026-11-10', channel: '농라', ordersUnder10: 5, ordersOver10: 2, sales: 250000, extraCost: 0, note: 'PC단독저장' }],
+        commonCosts: []
+      }
+    }
+  });
+  const mergedDefaultRes = await callApi({
+    method: 'POST',
+    auth: defaultAuth,
+    body: {
+      action: 'merge',
+      state: {
+        channels: CHANNELS,
+        targetMonths: TARGET_MONTHS.map(t => t.ym === '2026-12' ? { ...t, target: 4000000 } : t),
+        channelRates: mockRates,
+        dailySales: [{ id: 502, date: '2026-11-11', channel: '카톡', ordersUnder10: 3, ordersOver10: 1, sales: 140000, extraCost: 0, note: '핸드폰단독저장' }],
+        commonCosts: [{ id: 601, date: '2026-11-11', category: '농약비', detail: '친환경 방제제', amount: 45000, note: '핸드폰공통비' }]
+      }
+    }
+  });
+  assert.strictEqual(mergedDefaultRes.statusCode, 200);
+  assert.strictEqual(mergedDefaultRes.data.state.dailySales.length, 2, 'PC에서 저장한 매출과 핸드폰에서 저장한 매출이 모두 합쳐져 보여야 합니다.');
+  assert.strictEqual(mergedDefaultRes.data.state.commonCosts.length, 1, '핸드폰에서 저장한 공통비용이 보존되어야 합니다.');
+  assert.strictEqual(mergedDefaultRes.data.state.targetMonths.find(t => t.ym === '2026-11').target, 3000000);
+  assert.strictEqual(mergedDefaultRes.data.state.targetMonths.find(t => t.ym === '2026-12').target, 4000000);
+
   // 테스트용 임시 로컬 파일 정리
   const localStoreDir = path.join(__dirname, '.local_cloud_store');
   if (fs.existsSync(localStoreDir)) {
