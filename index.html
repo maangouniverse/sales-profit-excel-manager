@@ -22,7 +22,6 @@
         </div>
         <span id="lastSavedBadge" class="save-status-badge">✅ 자동저장 활성화됨</span>
         <button id="btnManualSave" class="btn btn-save" title="현재 입력·수정한 모든 데이터를 즉시 저장합니다">💾 현재 내용 저장하기</button>
-        <button id="btnResetSample" class="btn btn-outline btn-secondary-action" title="모든 데이터를 0원 초기 상태로 비웁니다">🧹 전체 데이터 초기화</button>
         <a href="./거래처별_매출순이익_관리프로그램.xlsx" download="거래처별_매출순이익_관리프로그램.xlsx" class="btn btn-primary btn-secondary-action">
           📥 엑셀(.xlsx) 다운로드
         </a>
@@ -336,15 +335,15 @@
           </div>
           <div class="form-field">
             <label>일일 매출액 (할인반영, 원) *</label>
-            <input type="number" id="inSaleAmount" class="input-field yellow-input" min="0" step="100" value="0" required />
+            <input type="number" id="inSaleAmount" class="input-field yellow-input" min="0" step="10" value="0" required />
           </div>
           <div class="form-field">
             <label>추가 비용 (특이발생분, 원)</label>
-            <input type="number" id="inSaleExtra" class="input-field yellow-input" min="0" step="100" value="0" />
+            <input type="number" id="inSaleExtra" class="input-field yellow-input" min="0" step="10" value="0" />
           </div>
           <div class="form-field">
-            <label>비고 (메모)</label>
-            <input type="text" id="inSaleNote" class="input-field yellow-input" placeholder="예: 11월 말 특가" />
+            <label>판매무게 (kg)</label>
+            <input type="number" id="inSaleNote" class="input-field yellow-input" min="0" step="any" placeholder="예: 150 또는 12.5" />
           </div>
           <div class="form-field action-col">
             <button type="submit" class="btn btn-primary full-width">➕ 내역 추가</button>
@@ -374,7 +373,7 @@
                 <th colspan="3">주문건수 내역 (무게별 구분)</th>
                 <th rowspan="2" class="num">총 매출<br/>(일일 매출액)</th>
                 <th rowspan="2" class="num">추가 비용</th>
-                <th rowspan="2">비고</th>
+                <th rowspan="2" class="num">판매무게(kg)</th>
                 <th colspan="6">기간별 자동 적용 수수료 및 택배·포장 비용 내역</th>
                 <th rowspan="2" class="num">총 지출<br/>(총비용)</th>
                 <th rowspan="2" class="num">순이익</th>
@@ -585,26 +584,14 @@
         </div>
       </div>
 
-      <!-- 비교 그래프 2종 -->
-      <div class="two-col-grid">
-        <div class="soft-card">
-          <div class="card-header">
-            <h3>판매채널별 매출액 · 순이익 비교 그래프</h3>
-            <span class="badge-unit">단위: 원</span>
-          </div>
-          <div class="chart-box-tall">
-            <canvas id="chartChannelCompare"></canvas>
-          </div>
+      <!-- 판매채널별 매출액 · 순이익 비교 그래프 -->
+      <div class="soft-card">
+        <div class="card-header">
+          <h3>판매채널별 매출액 · 순이익 비교 그래프</h3>
+          <span class="badge-unit">단위: 원</span>
         </div>
-
-        <div class="soft-card">
-          <div class="card-header">
-            <h3>일자별 순이익 변동 현황 (선택 기간)</h3>
-            <span class="badge-unit">양수(코랄) / 적자(블루) 구분</span>
-          </div>
-          <div class="chart-box-tall">
-            <canvas id="chartDailyProfitFluctuation"></canvas>
-          </div>
+        <div class="chart-box-tall">
+          <canvas id="chartChannelCompare"></canvas>
         </div>
       </div>
     </section>

@@ -109,7 +109,20 @@ assert(tabCommonHtml.indexOf('id="addCommonCostForm"') < tabCommonHtml.indexOf('
 
 assert(cssContent.includes('flex-direction: row') && cssContent.includes('.desktop-only-desc'), '모바일에서 탭 메뉴가 가로 1줄 스크롤로 배치되고 불필요한 상단 설명이 숨겨져야 합니다.');
 assert(jsContent.includes('window.scrollTo') && jsContent.includes('retryCloudFetch') && jsContent.includes('loadErrorState'), '메뉴 전환 시 스크롤 최상단 이동 및 데이터 조회 실패 시 안내/재시도 기능이 포함되어야 합니다.');
-console.log('✅ 6. 모바일 반복 공통 영역 제거, 메뉴 선택 시 내용 즉시 표시, 스크롤 초기화, 조회 실패/재시도 UI 검증 완료');
+
+// 추가 수정 사항 5가지 검증:
+// 1) 전체데이터 초기화 버튼 삭제
+assert(!htmlContent.includes('id="btnResetSample"') && !htmlContent.includes('전체 데이터 초기화'), '전체데이터 초기화 버튼이 삭제되어야 합니다.');
+// 2) 일자별 순이익 변동 현황 (선택 기간) 삭제
+assert(!htmlContent.includes('chartDailyProfitFluctuation') && !htmlContent.includes('일자별 순이익 변동 현황 (선택 기간)'), '일자별 순이익 변동 현황 (선택 기간)이 삭제되어야 합니다.');
+// 3) 매출·지출내역 입력 및 자동계산 시트 날짜순 정렬
+assert(jsContent.includes('String(a.date || \'\').localeCompare(String(b.date || \'\'))'), '매출·지출내역 입력 및 자동계산 시트가 날짜순으로 정렬되어야 합니다.');
+// 4) 일일매출액 10원 단위까지 입력 가능 (step="10")
+assert(htmlContent.includes('id="inSaleAmount" class="input-field yellow-input" min="0" step="10"'), '일일매출액 입력란이 10원 단위(step="10")로 설정되어야 합니다.');
+// 5) 시트의 비고를 판매무게(kg)으로 수정하고 하단 합계에 무게 총합 표시
+assert(htmlContent.includes('판매무게(kg)') && jsContent.includes('판매무게 총합(kg)') && jsContent.includes('fmtWeightKg(sumWeight)'), '비고가 판매무게(kg)으로 수정되고 하단 합계에 무게 총합이 표시되어야 합니다.');
+
+console.log('✅ 6. 모바일 반복 공통 영역 제거, 메뉴 선택 시 내용 즉시 표시, 스크롤 초기화, 조회 실패/재시도 UI 및 5대 추가 수정사항 검증 완료');
 
 // 7. PC ↔ 모바일 계정 동기화 API (/api/state) 및 기존 데이터 보존(merge)·비공개 인증 검증
 async function verifyCloudSyncApi() {

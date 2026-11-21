@@ -564,6 +564,22 @@ function fmtPct(r, digits = 1) {
   return (r * 100).toFixed(digits) + '%';
 }
 
+function parseWeightKg(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const cleaned = String(val).replace(/,/g, '').replace(/kg/gi, '').trim();
+  const num = Number(cleaned);
+  if (!isNaN(num)) return num;
+  const match = cleaned.match(/-?\d+(\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function fmtWeightKg(n) {
+  if (typeof n !== 'number' || isNaN(n)) return '0kg';
+  const rounded = Math.round(n * 100) / 100;
+  return rounded.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) + 'kg';
+}
+
 function escapeHtmlAttr(str) {
   return String(str || '')
     .replace(/&/g, '&amp;')
@@ -1239,15 +1255,20 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
 
 function renderDailySalesTable(evaluatedSales, start, end) {
   const onlyPeriod = document.getElementById('chkFilterDailyByPeriod').checked;
-  const rows = onlyPeriod
+  const filteredRows = onlyPeriod
     ? evaluatedSales.filter(r => r.date >= start && r.date <= end)
     : evaluatedSales;
+  const rows = [...filteredRows].sort((a, b) => {
+    const cmp = String(a.date || '').localeCompare(String(b.date || ''));
+    if (cmp !== 0) return cmp;
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  });
 
   const tbody = document.querySelector('#dailySalesTable tbody');
   const tfoot = document.querySelector('#dailySalesTable tfoot');
   tbody.innerHTML = '';
 
-  let sumU10 = 0, sumO10 = 0, sumOrd = 0, sumSales = 0, sumExtra = 0, sumFee = 0, sumOrdCost = 0, sumCost = 0, sumProfit = 0;
+  let sumU10 = 0, sumO10 = 0, sumOrd = 0, sumSales = 0, sumExtra = 0, sumWeight = 0, sumFee = 0, sumOrdCost = 0, sumCost = 0, sumProfit = 0;
 
   if (rows.length === 0) {
     const emptyTr = document.createElement('tr');
@@ -1281,6 +1302,7 @@ function renderDailySalesTable(evaluatedSales, start, end) {
     sumOrd += r.totalOrders;
     sumSales += r.sales;
     sumExtra += r.extraCost;
+    sumWeight += parseWeightKg(r.note);
     if (r.isValid) {
       sumFee += r.feeAmt;
       sumOrdCost += r.orderCost;
@@ -1316,13 +1338,16 @@ function renderDailySalesTable(evaluatedSales, start, end) {
       </td>
       <td data-label="총 주문건수" class="num primary-metric"><strong>${fmtNum(r.totalOrders)}</strong></td>
       <td data-label="총 매출 (일일 매출액)" class="num primary-metric">
-        <input type="number" class="table-inline-input" style="width:110px" min="0" step="100" value="${r.sales}" onchange="updateDailyField(${r.id}, 'sales', Math.max(0, Number(this.value)||0))" />
+        <input type="number" class="table-inline-input" style="width:110px" min="0" step="10" value="${r.sales}" onchange="updateDailyField(${r.id}, 'sales', Math.max(0, Number(this.value)||0))" />
       </td>
       <td data-label="추가 비용" class="num">
-        <input type="number" class="table-inline-input" style="width:88px" min="0" step="100" value="${r.extraCost || 0}" onchange="updateDailyField(${r.id}, 'extraCost', Math.max(0, Number(this.value)||0))" />
+        <input type="number" class="table-inline-input" style="width:88px" min="0" step="10" value="${r.extraCost || 0}" onchange="updateDailyField(${r.id}, 'extraCost', Math.max(0, Number(this.value)||0))" />
       </td>
-      <td data-label="비고">
-        <input type="text" class="table-inline-text" value="${escapeHtmlAttr(r.note)}" onchange="updateDailyField(${r.id}, 'note', this.value)" placeholder="비고 입력" />
+      <td data-label="판매무게(kg)" class="num">
+        <span class="cell-value-group">
+          <input type="text" inputmode="decimal" class="table-inline-input" style="width:86px" value="${escapeHtmlAttr(r.note)}" onchange="updateDailyField(${r.id}, 'note', this.value)" placeholder="0" />
+          <span>kg</span>
+        </span>
       </td>
       <td data-label="설정상태" class="${errCls}">${r.status}</td>
       <td data-label="적용 수수료율" class="num ${errCls}">${r.isValid ? fmtPct(r.feeRate, 2) : '비용 설정 필요'}</td>
@@ -1351,7 +1376,7 @@ function renderDailySalesTable(evaluatedSales, start, end) {
       <td data-label="총 주문건수" class="num">${fmtNum(sumOrd)}</td>
       <td data-label="총 매출 합계" class="num">${fmtNum(sumSales)}</td>
       <td data-label="추가 비용 합계" class="num">${fmtNum(sumExtra)}</td>
-      <td class="mobile-hide-empty"></td>
+      <td data-label="판매무게 총합(kg)" class="num">${fmtWeightKg(sumWeight)}</td>
       <td data-label="집계 상태">정상 합산</td>
       <td class="num mobile-hide-empty">-</td>
       <td data-label="매출액 수수료 합계" class="num">${fmtNum(sumFee)}</td>
@@ -1531,31 +1556,6 @@ function renderAnalysisTab(periodRows, totalSales, totalOrders, periodCommonCost
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { position: 'bottom' } }
-    }
-  });
-
-  // 실적자동계산3.png 스타일: 일자별 순이익 변동 현황 (양수는 코랄 #c86464, 적자는 블루 #5271b5)
-  const sortedByDate = [...periodRows].sort((a, b) => a.date.localeCompare(b.date));
-  updateChart('chartDailyProfitFluctuation', {
-    type: 'bar',
-    data: {
-      labels: sortedByDate.map(r => `${r.date.slice(5)} (${r.channel})`),
-      datasets: [{
-        label: '일별 순이익 (원)',
-        data: sortedByDate.map(r => r.netProfit),
-        backgroundColor: sortedByDate.map(r => r.netProfit >= 0 ? '#c86464' : '#5271b5'),
-        barThickness: 12,
-        borderRadius: 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false } },
-        y: { grid: { color: '#f0f0f0' } }
-      }
     }
   });
 }
@@ -2155,14 +2155,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (inCommonDetailEl) {
     inCommonDetailEl.addEventListener('input', syncCommonEtcGuide);
   }
-
-  // 전체 데이터 초기화
-  document.getElementById('btnResetSample').addEventListener('click', () => {
-    if (!confirm('입력하신 모든 데이터를 비우고 초기 상태(0원)로 초기화하시겠습니까?')) return;
-    state = JSON.parse(JSON.stringify(INITIAL_STATE));
-    saveState('🧹 모든 데이터가 초기 상태(0원)로 비워졌습니다.');
-    renderAll();
-  });
 
   // 일일 매출 추가 폼 (10kg 미만 / 10kg 이상 구분)
   document.getElementById('addDailySaleForm').addEventListener('submit', e => {

@@ -407,7 +407,7 @@ function buildSheet2() {
 
   sh.setRowHeight(3, 36);
   sh.setCell(3, 2, {
-    v: '💡 [입력 안내] ① 노란색 열(매출일자, 판매채널, 10kg 미만 주문건수, 10kg 이상 주문건수, 일일 매출액, 추가비용, 비고)만 입력하세요.\n② 10kg 미만과 10kg 이상 주문건수에 따라 각각 다른 택배비와 포장비(박스+포장비닐+리플렛)가 자동 계산됩니다.\n③ 기본 택배비·박스·비닐·리플렛 비용은 자동 계산되므로 [추가 비용] 칸에 중복 입력하지 마세요.',
+    v: '💡 [입력 안내] ① 노란색 열(매출일자, 판매채널, 10kg 미만 주문건수, 10kg 이상 주문건수, 일일 매출액, 추가비용, 판매무게(kg))만 입력하세요.\n② 10kg 미만과 10kg 이상 주문건수에 따라 각각 다른 택배비와 포장비(박스+포장비닐+리플렛)가 자동 계산됩니다.\n③ 기본 택배비·박스·비닐·리플렛 비용은 자동 계산되므로 [추가 비용] 칸에 중복 입력하지 마세요.',
     s: 22
   });
   sh.merge('B3:R3');
@@ -420,6 +420,7 @@ function buildSheet2() {
   const totOrdersAll = totUnder10All + totOver10All;
   const totSalesAll = enrichedSales.reduce((a, b) => a + b.sales, 0);
   const totExtraAll = enrichedSales.reduce((a, b) => a + b.extraCost, 0);
+  const totWeightAll = enrichedSales.reduce((a, b) => a + (Number(b.note) || 0), 0);
   const totFeeAll = enrichedSales.reduce((a, b) => a + b.feeAmt, 0);
   const totOrderCostAll = enrichedSales.reduce((a, b) => a + b.orderCost, 0);
   const totCostAll = enrichedSales.reduce((a, b) => a + b.totalCost, 0);
@@ -432,7 +433,7 @@ function buildSheet2() {
   sh.setCell(4, 6, { f: 'SUM(F6:F305)', v: totOrdersAll, s: 17 });
   sh.setCell(4, 7, { f: 'SUM(G6:G305)', v: totSalesAll, s: 17 });
   sh.setCell(4, 8, { f: 'SUM(H6:H305)', v: totExtraAll, s: 17 });
-  sh.setCell(4, 9, { v: '← 매출·주문 입력 | 비용·손익 자동계산 →', s: 16 });
+  sh.setCell(4, 9, { f: 'SUM(I6:I305)', v: totWeightAll, s: 17 });
   sh.setCell(4, 10, { f: 'COUNTIF(J6:J305,"비용 설정 필요")&"건 누락"', v: '0건 누락', s: 16 });
   sh.setCell(4, 11, { v: '-', s: 16 });
   sh.setCell(4, 12, { f: 'SUMIF(L6:L305,">=0")', v: totFeeAll, s: 17 });
@@ -453,7 +454,7 @@ function buildSheet2() {
     [6, '총 주문건수\n(자동합산)', 4],
     [7, '일일 매출액\n(할인반영 실매출)', 3],
     [8, '추가 비용\n(특이발생분)', 3],
-    [9, '비고\n(메모)', 3],
+    [9, '판매무게(kg)\n(무게입력)', 3],
     [10, '비용설정 상태\n(자동검증)', 4],
     [11, '적용 수수료율\n(자동조회)', 4],
     [12, '매출액 수수료\n(자동계산)', 4],
