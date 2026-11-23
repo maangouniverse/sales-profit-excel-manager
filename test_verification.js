@@ -50,7 +50,20 @@ assert.strictEqual(mAfter.unitOver10, 5500);
 assert.strictEqual(mAfter.orderCost, 145000);
 assert.strictEqual(mAfter.totalCost, 214600);
 assert.strictEqual(mAfter.netProfit, 985400);
-console.log('✅ 3. 10kg 미만/이상 택배비 구분 및 박스·포장비닐·리플렛 비용 합산, 단가 변경 전후 수식 검증 완료');
+
+// 10kg 이상 주문건수가 0건일 때 10kg 이상 단가에 비용이 0원으로 표시되고, 10kg 미만 주문건수가 0건일 때 10kg 미만 단가에 0원으로 표시되는지 검증
+const zeroOver10Sale = { date: '2026-11-17', channel: '스마트스토어', ordersUnder10: 15, ordersOver10: 0, sales: 450000, extraCost: 0 };
+const mZeroOver10 = computeRowMetrics(zeroOver10Sale, mockRates);
+assert.strictEqual(mZeroOver10.unitUnder10, 4500);
+assert.strictEqual(mZeroOver10.unitOver10, 0, '10kg 이상 주문건수가 0건인 경우 10kg 이상 단가에 비용이 잡히지 않고 0이어야 합니다.');
+assert.strictEqual(mZeroOver10.orderCost, 15 * 4500);
+
+const zeroUnder10Sale = { date: '2026-11-17', channel: '스마트스토어', ordersUnder10: 0, ordersOver10: 8, sales: 400000, extraCost: 0 };
+const mZeroUnder10 = computeRowMetrics(zeroUnder10Sale, mockRates);
+assert.strictEqual(mZeroUnder10.unitUnder10, 0, '10kg 미만 주문건수가 0건인 경우 10kg 미만 단가에 비용이 잡히지 않고 0이어야 합니다.');
+assert.strictEqual(mZeroUnder10.unitOver10, 5500);
+assert.strictEqual(mZeroUnder10.orderCost, 8 * 5500);
+console.log('✅ 3. 10kg 미만/이상 택배비 구분(주문 0건 시 단가 0원 처리 포함) 및 박스·포장비닐·리플렛 비용 합산, 단가 변경 전후 수식 검증 완료');
 
 // 4. 판매채널 '공판장' 추가 및 계산 검증
 assert(CHANNELS.includes('공판장'), '판매채널 목록에 공판장이 포함되어야 합니다.');

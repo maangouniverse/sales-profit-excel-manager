@@ -103,9 +103,13 @@ function computeRowMetrics(row, rates) {
   const feeRate = rate.feeRate;
   const feeAmt = Math.round(row.sales * feeRate);
   const packSum = (rate.boxCost || 0) + (rate.vinylCost || 0) + (rate.leafletCost || 0) + (rate.etcCost || 0);
-  const unitUnder10 = (rate.shipUnder10 || 0) + packSum;
-  const unitOver10 = (rate.shipOver10 || 0) + packSum;
-  const orderCost = (row.ordersUnder10 * unitUnder10) + (row.ordersOver10 * unitOver10);
+  const u10 = Number(row.ordersUnder10) || 0;
+  const o10 = Number(row.ordersOver10) || 0;
+  const rawUnitUnder10 = (rate.shipUnder10 || 0) + packSum;
+  const rawUnitOver10 = (rate.shipOver10 || 0) + packSum;
+  const unitUnder10 = u10 > 0 ? rawUnitUnder10 : 0;
+  const unitOver10 = o10 > 0 ? rawUnitOver10 : 0;
+  const orderCost = (u10 * rawUnitUnder10) + (o10 * rawUnitOver10);
   const totalCost = feeAmt + orderCost + (row.extraCost || 0);
   const netProfit = row.sales - totalCost;
   const margin = row.sales > 0 ? netProfit / row.sales : 0;

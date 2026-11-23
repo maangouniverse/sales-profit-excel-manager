@@ -776,9 +776,11 @@ function evaluateDailyRow(row, allRates) {
   const feeRate = Number(rate.feeRate) || 0;
   const feeAmt = Math.round(row.sales * feeRate);
   const packSum = (Number(rate.boxCost) || 0) + (Number(rate.vinylCost) || 0) + (Number(rate.leafletCost) || 0);
-  const unitUnder10 = (Number(rate.shipUnder10) || 0) + packSum;
-  const unitOver10 = (Number(rate.shipOver10) || 0) + packSum;
-  const orderCost = (u10 * unitUnder10) + (o10 * unitOver10);
+  const rawUnitUnder10 = (Number(rate.shipUnder10) || 0) + packSum;
+  const rawUnitOver10 = (Number(rate.shipOver10) || 0) + packSum;
+  const unitUnder10 = u10 > 0 ? rawUnitUnder10 : 0;
+  const unitOver10 = o10 > 0 ? rawUnitOver10 : 0;
+  const orderCost = (u10 * rawUnitUnder10) + (o10 * rawUnitOver10);
   const totalCost = feeAmt + orderCost + (Number(row.extraCost) || 0);
   const netProfit = row.sales - totalCost;
   const margin = row.sales > 0 ? netProfit / row.sales : 0;
