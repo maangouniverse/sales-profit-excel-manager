@@ -64,9 +64,13 @@ DEFAULT_TARGET_MONTHS[5].start = '2027-04-01';
 function sanitizeState(raw) {
   if (!raw || typeof raw !== 'object') return null;
 
-  const channels = Array.isArray(raw.channels) && raw.channels.length > 0
-    ? Array.from(new Set([...DEFAULT_CHANNELS, ...raw.channels.map(c => String(c || '').trim()).filter(Boolean)]))
+  const hasCustomChannels = Array.isArray(raw.channels) && raw.channels.length > 0;
+  const channels = hasCustomChannels
+    ? Array.from(new Set(raw.channels.map(c => String(c || '').trim()).filter(Boolean)))
     : [...DEFAULT_CHANNELS];
+  const deletedChannels = Array.isArray(raw.deletedChannels)
+    ? Array.from(new Set(raw.deletedChannels.map(c => String(c || '').trim()).filter(c => Boolean(c) && !channels.includes(c))))
+    : [];
 
   const targetMonths = DEFAULT_TARGET_MONTHS.map(def => {
     const found = Array.isArray(raw.targetMonths) ? raw.targetMonths.find(x => x && x.ym === def.ym) : null;
@@ -76,10 +80,10 @@ function sanitizeState(raw) {
     };
   });
 
-  const channelRates = Array.isArray(raw.channelRates) && raw.channelRates.length > 0
+  const channelRates = Array.isArray(raw.channelRates)
     ? raw.channelRates.map((r, i) => ({
         id: r.id || (i + 1),
-        channel: String(r.channel || DEFAULT_CHANNELS[i] || '기타'),
+        channel: String(r.channel || channels[0] || '기타'),
         start: String(r.start || '2026-11-01'),
         end: r.end ? String(r.end) : '',
         feeRate: Math.max(0, Number(r.feeRate) || 0),
@@ -90,7 +94,7 @@ function sanitizeState(raw) {
         leafletCost: Math.max(0, Number(r.leafletCost) || 0),
         note: String(r.note || '')
       }))
-    : DEFAULT_CHANNELS.map((ch, i) => ({
+    : channels.map((ch, i) => ({
         id: i + 1,
         channel: ch,
         start: '2026-11-01',
@@ -133,6 +137,7 @@ function sanitizeState(raw) {
 
   return {
     channels,
+    deletedChannels,
     commonCostCategories: [...COMMON_COST_CATEGORIES],
     targetMonths,
     channelRates,
@@ -162,7 +167,13 @@ function mergeStates(cloudRaw, localRaw) {
   if (!cloud) return local;
   if (!local) return cloud;
 
-  const channels = Array.from(new Set([...cloud.channels, ...local.channels]));
+  const localDeletedSet = new Set(local.deletedChannels || []);
+  const cloudDeletedSet = new Set(cloud.deletedChannels || []);
+  const channels = Array.from(new Set([
+    ...cloud.channels.filter(c => !localDeletedSet.has(c)),
+    ...local.channels
+  ]));
+  const deletedChannels = Array.from(new Set([...cloudDeletedSet, ...localDeletedSet])).filter(c => !channels.includes(c));
 
   const targetMonths = DEFAULT_TARGET_MONTHS.map(def => {
     const cTm = cloud.targetMonths.find(x => x.ym === def.ym);
@@ -175,12 +186,15 @@ function mergeStates(cloudRaw, localRaw) {
     };
   });
 
-  // channelRates 병합: 수정된 단가 또는 신규 추가 행 보존 (수정한 측이 우선 반영되도록 local 우선 비교)
+  // channelRates 병합: 수정된 단가 또는 신규 추가 행 보존 (삭제된 채널의 설정은 제외하고, 수정한 측이 우선 반영되도록 local 우선 비교)
+  const activeChannelSet = new Set(channels);
   const rateMap = new Map();
   cloud.channelRates.forEach(r => {
+    if (!activeChannelSet.has(r.channel)) return;
     rateMap.set(`${r.channel}|${r.start}|${r.id}`, { ...r });
   });
   local.channelRates.forEach(lRate => {
+    if (!activeChannelSet.has(lRate.channel)) return;
     let matchedKey = null;
     for (const [k, cRate] of rateMap.entries()) {
       if (cRate.id === lRate.id || (cRate.channel === lRate.channel && cRate.start === lRate.start && (cRate.end || '') === (lRate.end || ''))) {
@@ -195,7 +209,7 @@ function mergeStates(cloudRaw, localRaw) {
       } else if (!isRateConfigured(existing) && !isRateConfigured(lRate)) {
         rateMap.set(matchedKey, { ...lRate });
       }
-    } else if (isRateConfigured(lRate)) {
+    } else {
       rateMap.set(`${lRate.channel}|${lRate.start}|${lRate.id}`, { ...lRate });
     }
   });
@@ -245,6 +259,7 @@ function mergeStates(cloudRaw, localRaw) {
 
   return {
     channels,
+    deletedChannels,
     commonCostCategories: [...COMMON_COST_CATEGORIES],
     targetMonths,
     channelRates,

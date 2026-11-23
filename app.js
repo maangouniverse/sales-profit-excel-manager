@@ -13,6 +13,7 @@ const COMMON_COST_CATEGORIES = [
 // 초기 기본 데이터 (예시 수치를 모두 비운 실사용 초기 상태: 2026.11 ~ 2027.10 기준)
 const INITIAL_STATE = {
   channels: ['농라', '스마트스토어', '카톡', '고흥몰', '남도장터', '로컬푸드', '공판장', '기타'],
+  deletedChannels: [],
   commonCostCategories: [...COMMON_COST_CATEGORIES],
   targetMonths: [
     { idx: 1, ym: '2026-11', label: '26년 11월', start: '2026-11-01', end: '2026-11-30', days: 30, target: 0 },
@@ -70,8 +71,11 @@ function normalizeLoadedState(parsed) {
   }
   const base = JSON.parse(JSON.stringify(INITIAL_STATE));
   parsed.channels = Array.isArray(parsed.channels) && parsed.channels.length > 0
-    ? Array.from(new Set([...base.channels, ...parsed.channels.filter(Boolean)]))
+    ? Array.from(new Set(parsed.channels.map(c => String(c || '').trim()).filter(Boolean)))
     : [...base.channels];
+  parsed.deletedChannels = Array.isArray(parsed.deletedChannels)
+    ? Array.from(new Set(parsed.deletedChannels.map(c => String(c || '').trim()).filter(c => Boolean(c) && !parsed.channels.includes(c))))
+    : [];
   parsed.commonCostCategories = [...COMMON_COST_CATEGORIES];
 
   if (Array.isArray(parsed.targetMonths) && parsed.targetMonths.length === 12) {
@@ -86,8 +90,20 @@ function normalizeLoadedState(parsed) {
     parsed.targetMonths = base.targetMonths;
   }
 
-  if (!Array.isArray(parsed.channelRates) || parsed.channelRates.length === 0) {
-    parsed.channelRates = base.channelRates;
+  if (!Array.isArray(parsed.channelRates)) {
+    parsed.channelRates = parsed.channels.map((ch, idx) => ({
+      id: idx + 1,
+      channel: ch,
+      start: '2026-11-01',
+      end: '',
+      feeRate: 0,
+      shipUnder10: 0,
+      shipOver10: 0,
+      boxCost: 0,
+      vinylCost: 0,
+      leafletCost: 0,
+      note: ''
+    }));
   }
 
   if (!Array.isArray(parsed.dailySales)) {
@@ -139,7 +155,8 @@ function hasMeaningfulData(st) {
     Boolean((r.end || '').trim()) ||
     Boolean((r.note || '').trim())
   )) return true;
-  if (Array.isArray(st.channels) && st.channels.length > INITIAL_STATE.channels.length) return true;
+  if (Array.isArray(st.channels) && JSON.stringify(st.channels) !== JSON.stringify(INITIAL_STATE.channels)) return true;
+  if (Array.isArray(st.deletedChannels) && st.deletedChannels.length > 0) return true;
   return false;
 }
 
@@ -375,6 +392,9 @@ function hasLocalUnpushedDifference(cloudLoaded, localSt) {
       if (!cTm || (Number(cTm.target) || 0) === 0) return true;
     }
   }
+
+  // 채널 목록(추가 또는 삭제)에 차이가 있는지 점검
+  if (JSON.stringify(localSt.channels || []) !== JSON.stringify(cloudLoaded.channels || [])) return true;
 
   // 채널 비용 설정 중 로컬에만 설정된 단가가 있는지 점검
   const isRateCfg = r => r && ((Number(r.feeRate) || 0) > 0 || (Number(r.shipUnder10) || 0) > 0 || (Number(r.shipOver10) || 0) > 0 || (Number(r.boxCost) || 0) > 0 || (Number(r.vinylCost) || 0) > 0 || (Number(r.leafletCost) || 0) > 0 || Boolean((r.end || '').trim()) || Boolean((r.note || '').trim()));
@@ -1313,7 +1333,10 @@ function renderDailySalesTable(evaluatedSales, start, end) {
     const dFormatted = formatKoreanDateWithDay(r.date);
     const errCls = !r.isValid ? 'cell-error' : '';
     const profitCls = !r.isValid ? 'cell-error' : r.netProfit < 0 ? 'cell-negative' : 'profit-pos';
-    const chOpts = state.channels
+    const chList = state.channels.includes(r.channel)
+      ? state.channels
+      : [r.channel, ...state.channels].filter(Boolean);
+    const chOpts = chList
       .map(ch => `<option value="${escapeHtmlAttr(ch)}" ${ch === r.channel ? 'selected' : ''}>${escapeHtmlAttr(ch)}</option>`)
       .join('');
 
@@ -1401,7 +1424,10 @@ function renderChannelRatesTable() {
     const sumOver10 = (Number(r.shipOver10) || 0) + packSum;
     const status = checkRateOverlap(r, state.channelRates);
     const isErr = status !== '정상';
-    const chOpts = state.channels
+    const chList = state.channels.includes(r.channel)
+      ? state.channels
+      : [r.channel, ...state.channels].filter(Boolean);
+    const chOpts = chList
       .map(ch => `<option value="${escapeHtmlAttr(ch)}" ${ch === r.channel ? 'selected' : ''}>${escapeHtmlAttr(ch)}</option>`)
       .join('');
 
@@ -1936,14 +1962,27 @@ function renderMasterSelectsAndLists() {
   const prevCh1 = chSel1.value;
   const prevCh2 = chSel2.value;
 
-  const chOptions = state.channels.map(c => `<option value="${c}">${c}</option>`).join('');
+  const chOptions = state.channels
+    .map(c => `<option value="${escapeHtmlAttr(c)}">${escapeHtmlAttr(c)}</option>`)
+    .join('');
   chSel1.innerHTML = chOptions;
   chSel2.innerHTML = chOptions;
 
   if (state.channels.includes(prevCh1)) chSel1.value = prevCh1;
   if (state.channels.includes(prevCh2)) chSel2.value = prevCh2;
 
-  document.getElementById('channelMasterList').innerHTML = state.channels.map(c => `<li>🛒 ${c}</li>`).join('');
+  const listEl = document.getElementById('channelMasterList');
+  if (listEl) {
+    listEl.innerHTML = state.channels.map(c => {
+      const safeAttr = escapeHtmlAttr(c);
+      return `
+        <li class="channel-tag-item">
+          <span class="channel-tag-name">🛒 ${safeAttr}</span>
+          <button type="button" class="btn-channel-del" data-channel="${safeAttr}" onclick="deleteChannelMaster(this.dataset.channel)" title="[${safeAttr}] 채널 삭제">✕ 삭제</button>
+        </li>
+      `;
+    }).join('');
+  }
 }
 
 function updateChart(canvasId, config) {
@@ -2028,6 +2067,26 @@ window.updateCommonField = function(id, field, val) {
     }
     renderAll();
   }
+};
+
+window.deleteChannelMaster = function(name) {
+  const targetName = String(name || '').trim();
+  if (!targetName || !state.channels.includes(targetName)) return;
+
+  if (state.channels.length <= 1) {
+    alert('최소 1개 이상의 판매채널이 유지되어야 합니다.');
+    return;
+  }
+
+  state.channels = state.channels.filter(c => c !== targetName);
+  if (!Array.isArray(state.deletedChannels)) state.deletedChannels = [];
+  if (!state.deletedChannels.includes(targetName)) {
+    state.deletedChannels.push(targetName);
+  }
+  state.channelRates = state.channelRates.filter(r => r.channel !== targetName);
+
+  saveState(`🗑️ 판매채널 [${targetName}]이(가) 삭제되었으며 비용설정·손익분석에 즉시 반영되었습니다.`);
+  renderAll();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2245,13 +2304,31 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAll();
   });
 
-  // 판매채널 마스터 추가
+  // 판매채널 마스터 추가 (추가 즉시 3. 비용설정 및 4. 손익분석에 바로 반영)
   document.getElementById('addChannelMasterForm').addEventListener('submit', e => {
     e.preventDefault();
     const name = document.getElementById('inNewChannelName').value.trim();
     if (name && !state.channels.includes(name)) {
       state.channels.push(name);
-      saveState(`➕ 새로운 판매채널 [${name}]이(가) 추가 및 저장되었습니다!`);
+      if (Array.isArray(state.deletedChannels)) {
+        state.deletedChannels = state.deletedChannels.filter(c => c !== name);
+      }
+      if (!state.channelRates.some(r => r.channel === name)) {
+        state.channelRates.push({
+          id: Date.now() + Math.floor(Math.random() * 10000),
+          channel: name,
+          start: '2026-11-01',
+          end: '',
+          feeRate: 0,
+          shipUnder10: 0,
+          shipOver10: 0,
+          boxCost: 0,
+          vinylCost: 0,
+          leafletCost: 0,
+          note: ''
+        });
+      }
+      saveState(`➕ 새로운 판매채널 [${name}]이(가) 추가되었으며 비용설정·손익분석에 즉시 반영되었습니다!`);
       renderAll();
     }
     document.getElementById('inNewChannelName').value = '';

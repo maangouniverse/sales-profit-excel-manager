@@ -262,6 +262,33 @@ async function verifyCloudSyncApi() {
   assert.strictEqual(mergedDefaultRes.data.state.targetMonths.find(t => t.ym === '2026-11').target, 3000000);
   assert.strictEqual(mergedDefaultRes.data.state.targetMonths.find(t => t.ym === '2026-12').target, 4000000);
 
+  // 7-7. 판매채널 등록관리 채널 삭제 기능 및 3. 판매채널 기간별비용설정 / 4. 판매채널별손익분석 즉시 연동 검증
+  assert(jsContent.includes('window.deleteChannelMaster') && jsContent.includes('btn-channel-del'), '판매채널 등록관리에서 채널 삭제 버튼과 삭제 함수가 존재해야 합니다.');
+  assert(jsContent.includes('state.channelRates = state.channelRates.filter(r => r.channel !== targetName)'), '채널 삭제 시 3. 판매채널 기간별비용설정에 바로 반영되어야 합니다.');
+  assert(jsContent.includes('!state.channelRates.some(r => r.channel === name)'), '채널 등록 시 3. 판매채널 기간별비용설정에 기본 설정 행이 바로 추가되어야 합니다.');
+
+  const channelDelTestUser = { userId: `test_ch_del_${Date.now()}`, password: 'correct_password_123' };
+  const afterDeleteState = {
+    channels: ['농라', '스마트스토어', '쿠팡'],
+    deletedChannels: ['카톡', '고흥몰', '남도장터', '로컬푸드', '공판장', '기타'],
+    targetMonths: TARGET_MONTHS,
+    channelRates: [
+      { id: 1, channel: '농라', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, note: '' },
+      { id: 2, channel: '스마트스토어', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, note: '' },
+      { id: 9, channel: '쿠팡', start: '2026-11-01', end: '', feeRate: 0, shipUnder10: 0, shipOver10: 0, boxCost: 0, vinylCost: 0, leafletCost: 0, note: '' }
+    ],
+    dailySales: [],
+    commonCosts: []
+  };
+  const chSaveRes = await callApi({
+    method: 'POST',
+    auth: channelDelTestUser,
+    body: { action: 'save', state: afterDeleteState }
+  });
+  assert.strictEqual(chSaveRes.statusCode, 200);
+  assert.deepStrictEqual(chSaveRes.data.state.channels, ['농라', '스마트스토어', '쿠팡'], '삭제한 기본 채널이 다시 복원되지 않고 등록/남아있는 채널만 정확히 유지되어야 합니다.');
+  assert.strictEqual(chSaveRes.data.state.channelRates.length, 3, '비용 설정에도 등록된 3개 채널만 정확히 반영되어야 합니다.');
+
   // 테스트용 임시 로컬 파일 정리
   const localStoreDir = path.join(__dirname, '.local_cloud_store');
   if (fs.existsSync(localStoreDir)) {
