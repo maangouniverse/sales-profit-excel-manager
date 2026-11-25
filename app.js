@@ -64,6 +64,9 @@ let lastLocalModifyTs = 0;
 let authCreds = loadAuthCreds();
 let state = loadState();
 let charts = {};
+const DAILY_TABLE_DEFAULT_LIMIT = 10;
+let isDailySalesExpanded = false;
+let dailyCalendarYm = '2026-11';
 
 function normalizeLoadedState(parsed) {
   if (!parsed || typeof parsed !== 'object') {
@@ -650,6 +653,10 @@ function setPeriodFilterYm(ymVal) {
   if (ymGroup) ymGroup.style.display = 'block';
   if (customGroup) customGroup.style.display = 'none';
 
+  if (/^\d{4}-\d{2}$/.test(ymVal)) {
+    dailyCalendarYm = ymVal;
+  }
+
   document.querySelectorAll('.sync-period-ym').forEach(sel => {
     if (Array.from(sel.options).some(opt => opt.value === ymVal)) {
       sel.value = ymVal;
@@ -888,7 +895,8 @@ function renderAll() {
   // 대시보드 표 및 차트 업데이트
   renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, totalVarCost, netProfit, finalProfit, start, end, periodCommonCost);
 
-  // 시트2: 일일 매출 입력 테이블 렌더링
+  // 시트2: 날짜별 일일 매출총액·수수료총액·순수익총액 달력 및 일일 매출 입력 테이블 렌더링
+  renderDailySummaryCalendar(evaluatedSales);
   renderDailySalesTable(evaluatedSales, start, end);
 
   // 시트3: 판매채널 비용 설정 테이블 렌더링
@@ -1275,6 +1283,126 @@ function renderDashboard(evaluatedSales, periodRows, periodTarget, actualSales, 
   });
 }
 
+function renderDailySummaryCalendar(evaluatedSales) {
+  const ymSel = document.getElementById('dailyCalendarYmSelect');
+  const calBody = document.getElementById('dailySummaryCalendarBody');
+  if (!ymSel || !calBody) return;
+
+  if (!/^\d{4}-\d{2}$/.test(dailyCalendarYm)) {
+    dailyCalendarYm = '2026-11';
+  }
+
+  // 달력 연월 드롭다운 옵션 구성 (기본 12개월 + 입력된 연월 + 현재 선택된 달력 연월)
+  const ymSet = new Set(state.targetMonths.map(t => t.ym));
+  ymSet.add(dailyCalendarYm);
+  (evaluatedSales || []).forEach(r => {
+    if (r && r.date && r.date.length >= 7) {
+      ymSet.add(r.date.slice(0, 7));
+    }
+  });
+  const sortedYms = Array.from(ymSet).sort();
+  ymSel.innerHTML = sortedYms.map(ym => {
+    const [y, m] = ym.split('-');
+    const label = `${y}년 ${Number(m)}월`;
+    return `<option value="${escapeHtmlAttr(ym)}" ${ym === dailyCalendarYm ? 'selected' : ''}>${escapeHtmlAttr(label)}</option>`;
+  }).join('');
+  ymSel.value = dailyCalendarYm;
+
+  // 날짜별 매출총액, 수수료총액, 순수익총액 집계
+  const dailyMap = new Map();
+  let monthSalesSum = 0;
+  let monthFeeSum = 0;
+  let monthProfitSum = 0;
+
+  (evaluatedSales || []).forEach(r => {
+    if (!r || !r.date) return;
+    const dKey = r.date;
+    if (!dailyMap.has(dKey)) {
+      dailyMap.set(dKey, { salesTotal: 0, feeTotal: 0, netProfitTotal: 0, count: 0 });
+    }
+    const bucket = dailyMap.get(dKey);
+    const sVal = Number(r.sales) || 0;
+    const fVal = r.isValid ? (Number(r.feeAmt) || 0) : 0;
+    const pVal = r.isValid ? (Number(r.netProfit) || 0) : 0;
+
+    bucket.salesTotal += sVal;
+    bucket.feeTotal += fVal;
+    bucket.netProfitTotal += pVal;
+    bucket.count += 1;
+
+    if (dKey.startsWith(dailyCalendarYm)) {
+      monthSalesSum += sVal;
+      monthFeeSum += fVal;
+      monthProfitSum += pVal;
+    }
+  });
+
+  const mSalesEl = document.getElementById('calMonthSalesSum');
+  const mFeeEl = document.getElementById('calMonthFeeSum');
+  const mProfitEl = document.getElementById('calMonthProfitSum');
+  if (mSalesEl) mSalesEl.textContent = fmtWon(monthSalesSum);
+  if (mFeeEl) mFeeEl.textContent = fmtWon(monthFeeSum);
+  if (mProfitEl) {
+    mProfitEl.textContent = fmtWon(monthProfitSum);
+    mProfitEl.className = monthProfitSum < 0 ? 'neg-text' : '';
+  }
+
+  const [year, month] = dailyCalendarYm.split('-').map(Number);
+  const firstDayDow = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const inSaleDateEl = document.getElementById('inSaleDate');
+  const selectedInputDate = inSaleDateEl ? inSaleDateEl.value : '';
+
+  const cellsHtml = [];
+
+  for (let i = 0; i < firstDayDow; i++) {
+    cellsHtml.push(`<div class="cal-day-cell empty"></div>`);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${dailyCalendarYm}-${String(day).padStart(2, '0')}`;
+    const dow = (firstDayDow + day - 1) % 7;
+    const dowCls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
+    const stat = dailyMap.get(dateStr) || { salesTotal: 0, feeTotal: 0, netProfitTotal: 0, count: 0 };
+    const hasData = stat.count > 0;
+    const isSelected = selectedInputDate === dateStr;
+
+    cellsHtml.push(`
+      <div class="cal-day-cell ${hasData ? 'has-data' : ''} ${isSelected ? 'is-selected' : ''}" data-date="${dateStr}" onclick="selectDailyCalendarDate('${dateStr}')" title="${dateStr} 클릭 시 상단 매출일자 선택">
+        <div class="cal-day-top">
+          <span class="cal-day-num ${dowCls}">${day}</span>
+          ${hasData ? `<span class="cal-day-count">${stat.count}건</span>` : ''}
+        </div>
+        ${hasData ? `
+          <div class="cal-day-metrics">
+            <div class="cal-metric-item sales">
+              <span class="cal-m-label">매출</span>
+              <strong class="cal-m-val">${fmtWon(stat.salesTotal)}</strong>
+            </div>
+            <div class="cal-metric-item fee">
+              <span class="cal-m-label">수수료</span>
+              <strong class="cal-m-val">${fmtWon(stat.feeTotal)}</strong>
+            </div>
+            <div class="cal-metric-item profit ${stat.netProfitTotal < 0 ? 'neg' : ''}">
+              <span class="cal-m-label">순수익</span>
+              <strong class="cal-m-val">${fmtWon(stat.netProfitTotal)}</strong>
+            </div>
+          </div>
+        ` : `
+          <div class="cal-day-empty-hint">-</div>
+        `}
+      </div>
+    `);
+  }
+
+  const trailingEmpty = (7 - ((firstDayDow + daysInMonth) % 7)) % 7;
+  for (let i = 0; i < trailingEmpty; i++) {
+    cellsHtml.push(`<div class="cal-day-cell empty"></div>`);
+  }
+
+  calBody.innerHTML = cellsHtml.join('');
+}
+
 function renderDailySalesTable(evaluatedSales, start, end) {
   const onlyPeriod = document.getElementById('chkFilterDailyByPeriod').checked;
   const filteredRows = onlyPeriod
@@ -1331,7 +1459,33 @@ function renderDailySalesTable(evaluatedSales, start, end) {
       sumCost += r.totalCost;
       sumProfit += r.netProfit;
     }
+  });
 
+  const totalRowCount = rows.length;
+  const hasMoreThanLimit = totalRowCount > DAILY_TABLE_DEFAULT_LIMIT;
+  const visibleRows = (hasMoreThanLimit && !isDailySalesExpanded)
+    ? rows.slice(0, DAILY_TABLE_DEFAULT_LIMIT)
+    : rows;
+  const hiddenCount = Math.max(0, totalRowCount - DAILY_TABLE_DEFAULT_LIMIT);
+
+  const expandWrap = document.getElementById('dailyTableExpandWrap');
+  const btnExpand = document.getElementById('btnToggleDailyExpand');
+  if (expandWrap && btnExpand) {
+    if (hasMoreThanLimit) {
+      expandWrap.style.display = 'flex';
+      if (isDailySalesExpanded) {
+        btnExpand.className = 'btn-table-expand expanded';
+        btnExpand.innerHTML = `▲ 내역 접기 (메인화면 기본 ${DAILY_TABLE_DEFAULT_LIMIT}개만 보기 / 전체 ${fmtNum(totalRowCount)}건)`;
+      } else {
+        btnExpand.className = 'btn-table-expand';
+        btnExpand.innerHTML = `▼ 나머지 내역 펼치기 (+${fmtNum(hiddenCount)}건 더보기 / 전체 ${fmtNum(totalRowCount)}건 중 ${DAILY_TABLE_DEFAULT_LIMIT}개 표시 중)`;
+      }
+    } else {
+      expandWrap.style.display = 'none';
+    }
+  }
+
+  visibleRows.forEach(r => {
     const dFormatted = formatKoreanDateWithDay(r.date);
     const errCls = !r.isValid ? 'cell-error' : '';
     const profitCls = !r.isValid ? 'cell-error' : r.netProfit < 0 ? 'cell-negative' : 'profit-pos';
@@ -1393,9 +1547,13 @@ function renderDailySalesTable(evaluatedSales, start, end) {
     tbody.appendChild(tr);
   });
 
+  const tfootCountLabel = (hasMoreThanLimit && !isDailySalesExpanded)
+    ? `전체 ${totalRowCount}건 중 ${DAILY_TABLE_DEFAULT_LIMIT}개 표시`
+    : `${totalRowCount}건`;
+
   tfoot.innerHTML = `
     <tr>
-      <td colspan="2" data-label="구분" class="card-title-cell">합계 (${rows.length}건)</td>
+      <td colspan="2" data-label="구분" class="card-title-cell">합계 (${tfootCountLabel})</td>
       <td data-label="10kg 미만 합계" class="num">${fmtNum(sumU10)}</td>
       <td data-label="10kg 이상 합계" class="num">${fmtNum(sumO10)}</td>
       <td data-label="총 주문건수" class="num">${fmtNum(sumOrd)}</td>
@@ -2013,6 +2171,42 @@ function attachCalendarPickers() {
 // ============================================================================
 // 전역 액션 함수
 // ============================================================================
+window.toggleDailySalesExpand = function() {
+  isDailySalesExpanded = !isDailySalesExpanded;
+  renderAll();
+};
+
+window.shiftDailyCalendarMonth = function(delta) {
+  if (!/^\d{4}-\d{2}$/.test(dailyCalendarYm)) {
+    dailyCalendarYm = '2026-11';
+  }
+  const [y, m] = dailyCalendarYm.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1 + delta, 1));
+  const nextY = dt.getUTCFullYear();
+  const nextM = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  dailyCalendarYm = `${nextY}-${nextM}`;
+  renderAll();
+};
+
+window.setDailyCalendarMonth = function(ymVal) {
+  if (/^\d{4}-\d{2}$/.test(ymVal)) {
+    dailyCalendarYm = ymVal;
+    renderAll();
+  }
+};
+
+window.selectDailyCalendarDate = function(dateStr) {
+  if (!dateStr) return;
+  const inSaleDateEl = document.getElementById('inSaleDate');
+  if (inSaleDateEl) {
+    inSaleDateEl.value = dateStr;
+  }
+  if (dateStr.length >= 7) {
+    dailyCalendarYm = dateStr.slice(0, 7);
+  }
+  renderAll();
+};
+
 window.deleteDailyRow = function(id) {
   state.dailySales = state.dailySales.filter(r => r.id !== id);
   saveState('🗑️ 일일 매출 내역이 삭제 및 저장되었습니다.');
@@ -2227,6 +2421,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const saleDate = document.getElementById('inSaleDate').value;
+    if (saleDate && saleDate.length >= 7) {
+      dailyCalendarYm = saleDate.slice(0, 7);
+    }
     state.dailySales.push({
       id: Date.now() + Math.floor(Math.random() * 10000),
       date: saleDate,

@@ -134,8 +134,15 @@ assert(jsContent.includes('String(a.date || \'\').localeCompare(String(b.date ||
 assert(htmlContent.includes('id="inSaleAmount" class="input-field yellow-input" min="0" step="10"'), '일일매출액 입력란이 10원 단위(step="10")로 설정되어야 합니다.');
 // 5) 시트의 비고를 판매무게(kg)으로 수정하고 하단 합계에 무게 총합 표시
 assert(htmlContent.includes('판매무게(kg)') && jsContent.includes('판매무게 총합(kg)') && jsContent.includes('fmtWeightKg(sumWeight)'), '비고가 판매무게(kg)으로 수정되고 하단 합계에 무게 총합이 표시되어야 합니다.');
+// 6) 달력이 매출·지출내역 입력 및 자동계산 시트보다 위에 배치되고 날짜별 매출총액·수수료총액·순수익총액을 표시하는지 검증
+const calCardIdx = tabDailyHtml.indexOf('id="dailySummaryCalendarCard"');
+const sheetTableIdx = tabDailyHtml.indexOf('id="dailySalesTable"');
+assert(calCardIdx !== -1 && sheetTableIdx !== -1 && calCardIdx < sheetTableIdx, '달력은 매출·지출내역 입력 및 자동계산 시트보다 위에 디스플레이되어야 합니다.');
+assert(jsContent.includes('renderDailySummaryCalendar') && jsContent.includes('salesTotal') && jsContent.includes('feeTotal') && jsContent.includes('netProfitTotal'), '달력에 일일 매출총액, 수수료총액, 순수익총액이 날짜별로 집계·표시되어야 합니다.');
+// 7) 매출·지출내역 입력 및 자동계산 시트 메인화면 10개 기본 표시 및 나머지 내역 펼치기 기능 검증
+assert(jsContent.includes('DAILY_TABLE_DEFAULT_LIMIT = 10') && jsContent.includes('toggleDailySalesExpand') && htmlContent.includes('id="btnToggleDailyExpand"'), '매출·지출내역 입력 및 자동계산 시트는 메인화면에서 10개만 기본 표시하고 펼치기 버튼으로 나머지를 볼 수 있어야 합니다.');
 
-console.log('✅ 6. 모바일 반복 공통 영역 제거, 메뉴 선택 시 내용 즉시 표시, 스크롤 초기화, 조회 실패/재시도 UI 및 5대 추가 수정사항 검증 완료');
+console.log('✅ 6. 모바일 반복 공통 영역 제거, 메뉴 선택 시 내용 즉시 표시, 스크롤 초기화, 조회 실패/재시도 UI, 상단 달력(매출/수수료/순수익) 및 시트 10개 표시·펼치기 검증 완료');
 
 // 7. PC ↔ 모바일 계정 동기화 API (/api/state) 및 기존 데이터 보존(merge)·비공개 인증 검증
 async function verifyCloudSyncApi() {
